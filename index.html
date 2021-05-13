@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .canvas{
+            margin: 0;
+            position: absolute; 
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+    <title>Proyek Grafkom</title>
+</head>
+<body style="margin: 0; padding: 0;">
+    <canvas id="layar" width="600" height="600" class="canvas"></canvas>
+
+    <script>
+        let vs_text = `#version 300 es
+        precision mediump float;
+        in vec4 koordinat;
+        void main(){
+            gl_Position = koordinat; 
+        }
+        `;
+        
+        // fragment shader GLSL (GL Shading Language)
+        let fs_text = `#version 300 es
+        precision mediump float;
+        uniform vec4 warna_kiriman;
+        out vec4 warna;
+        void main(){
+            warna = warna_kiriman;
+        }
+        `;
+
+    </script>
+
+
+    <script>
+        let layar = document.getElementById("layar");
+        let gl = layar.getContext('webgl2');
+
+        // Untuk Vertex Shader
+        let vs = gl.createShader(gl.VERTEX_SHADER); 
+        gl.shaderSource(vs, vs_text); 
+        gl.compileShader(vs); 
+
+        // Untuk Fragment Shader
+        let fs = gl.createShader(gl.FRAGMENT_SHADER); 
+        gl.shaderSource(fs, fs_text);
+        gl.compileShader(fs); 
+
+        // Proses link jadi exe
+        let prog = gl.createProgram(); // buat folder kosong (?)
+        gl.attachShader(prog, vs); // copy obj ke folder
+        gl.attachShader(prog, fs); // copy obj ke folder
+        gl.linkProgram(prog); // di-link menjadi satu exe
+        gl.useProgram(prog); // pilih shader yang mau dijalankan
+
+
+        // == Model 2D ==
+        // koordinat vertex dalam x,y
+        // diberi Float32Array agar bisa displit datanya (?)
+        let segitiga = new Float32Array([0.0, 0.0, 0.5, 0.7, 0.7, 0.0]);
+        let kotak = new Float32Array([  -0.5, -0.5,
+                                        -0.8, -0.5,
+                                        -0.8, -0.8,
+                                        -0.5, -0.8
+                                    ]);
+
+        let buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer); // memilih VBO yang hendak diotak atik
+        // jangan lupa tambahkan inputan in di vs_text
+
+        // Cari lubang pipa ke shader
+        let koordinat_loc = gl.getAttribLocation(prog, 'koordinat'); 
+        gl.vertexAttribPointer(koordinat_loc, // bentuk dan lebar pipa
+                                2, // dikirim per berapa
+                                gl.FLOAT, // tipe data
+                                false, //normalisasi
+                                0, //start
+                                0); // stride/loncatan
+
+        // Membuka keran pipa
+        gl.enableVertexAttribArray(koordinat_loc);
+        
+
+        // Membuat lubang untukw warna
+        let warna_loc = gl.getUniformLocation(prog, 'warna_kiriman'); 
+
+
+
+
+        /// == Penggambaran ==
+        gl.clearColor(0.3, 0.3, 0.3, 1.0); // rgba
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        gl.uniform4f(warna_loc, 1.0, 0.0, 0.0, 1,0); // warna
+        gl.bufferData(gl.ARRAY_BUFFER, segitiga, gl.STATIC_DRAW);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+        gl.uniform4f(warna_loc, 0.0, 1.0, 0.0, 1,0); // warna
+        gl.bufferData(gl.ARRAY_BUFFER, kotak, gl.STATIC_DRAW);
+        gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+        
+
+
+
+    </script>
+</body>
+</html>

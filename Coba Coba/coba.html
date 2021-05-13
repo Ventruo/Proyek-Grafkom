@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .canvas{
+            margin: 0;
+            position: absolute; 
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+    <title>Coba</title>
+</head>
+<body>
+    <canvas id="layar" width="600" height="600" class="canvas"></canvas>
+
+    <script>
+        let vs_text = `#version 300 es
+        precision mediump float;
+
+        in vec4 a_position; 
+        out vec4 warna_gradasi;
+
+        uniform mat4 u_matrix;
+        void main(){
+            gl_Position = u_matrix * a_position;
+
+            warna_gradasi = gl_Position * 0.5 + 0.5;
+        }
+        `;
+        
+        // fragment shader GLSL (GL Shading Language)
+        let fs_text = `#version 300 es
+        precision mediump float;
+
+        in vec4 warna_gradasi;
+        out vec4 warna;
+        void main(){
+            warna = warna_gradasi;
+        }
+        `;
+
+    </script>
+
+    <script src='gl-matrix.js'></script>
+    <script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
+
+    <script>
+        /** @type {HTMLCanvasElement} */
+
+        function createShader(gl, type, source){
+            var shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+            if (success) {
+                return shader;
+            }
+        }
+
+        function createProgram(gl, vs, fs){
+            var program = gl.createProgram();
+            gl.attachShader(program, vs);
+            gl.attachShader(program, fs);
+            gl.linkProgram(program);
+            var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+            if (success) {
+                return program;
+            }
+        }
+        
+        // Get WebGL Context
+        let layar = document.getElementById("layar");
+        let gl = layar.getContext('webgl2'); 
+        
+        // Create Vertex & Fragment Shader
+        var vs = createShader(gl, gl.VERTEX_SHADER, vs_text);
+        var fs = createShader(gl, gl.FRAGMENT_SHADER, fs_text);
+
+        // Create Program
+        var program = createProgram(gl, vs, fs);
+
+        var positions = new Float32Array([
+                                -0.2, 0,
+                                -0.2, 0.5,
+                                0.5, 0,
+                            ]);
+
+        let koordinat_loc = gl.getAttribLocation(program, 'a_position'); 
+        let matrixLocation = gl.getUniformLocation(program, 'u_matrix'); 
+
+        let buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer); 
+
+
+        /// == RENDERING ==
+        webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+
+        // Convert from clip space to pixels
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+        // Clear Screen
+        gl.clearColor(0.3, 0.3, 0.3, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        
+        // Use Shaders
+        gl.useProgram(program); 
+
+        gl.enableVertexAttribArray(koordinat_loc);
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer); 
+        gl.vertexAttribPointer(koordinat_loc, 2, gl.FLOAT, false, 0, 0);
+        gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+
+        const {mat4} = glMatrix;
+        matrixTransformasi = mat4.create();
+        mat4.translate(matrixTransformasi, matrixTransformasi, [0, 0, 0]);
+        mat4.rotateZ(matrixTransformasi, matrixTransformasi, Math.PI*30/180.0);
+        // mat4.scale(matrixTransformasi, matrixTransformasi, [0.5, 1.0, 0]);
+
+        // Set the matrix.
+        gl.uniformMatrix4fv(matrixLocation, false, matrixTransformasi);
+        
+        // Draw Geometry
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+    </script>
+</body>
+</html>

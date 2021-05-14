@@ -13,7 +13,7 @@
             transform: translate(-50%, -50%);
         }
     </style>
-    <title>Kubus Texture</title>
+    <title>Kubus Texture + Phong</title>
 </head>
 <body>
     <canvas id="layar" width="600" height="600" class="canvas"></canvas>
@@ -23,13 +23,26 @@
         precision mediump float;
 
         in vec4 obj_vertices;
+        in vec4 obj_normal;
         in vec2 texture_vertices;
+        
+        uniform mat4 matrix_transform_camera;  // matrix transformasi & cahaya
+        uniform mat4 matrix_normal; // matrix benda rotasinya saja utk normal
+        uniform mat4 matrix_cahaya; // matrik Cahaya benda
+        uniform vec3 lamp_vertices;
 
-        uniform mat4 matrixTransformCamera;  // matrix transformasi & cahaya
+        out vec4 gradasi_vertex;
+        out vec4 gradasi_normal;
+        out vec3 lamp_vertices_interp;
 
         out vec2 texture_vertices_interp;
         void main(){
-            gl_Position = matrixTransformCamera * obj_vertices;	
+            gl_Position = matrix_transform_camera * obj_vertices;	
+
+            gradasi_vertex = matrix_cahaya * obj_vertices;
+            gradasi_normal = matrix_normal * obj_normal;
+            // gradasi_normal = obj_normal;
+            lamp_vertices_interp = lamp_vertices;
 
             texture_vertices_interp = texture_vertices;
         }
@@ -39,12 +52,21 @@
         let fs_text = `#version 300 es
         precision mediump float;
 
+        in vec4 gradasi_vertex;
+        in vec4 gradasi_normal;
+        in vec3 lamp_vertices_interp;
         in vec2 texture_vertices_interp;
+
         uniform sampler2D texture_data;
         
         out vec4 warna;
         void main(){
-            warna = texture(texture_data, texture_vertices_interp);
+            vec3 light_dir = normalize(lamp_vertices_interp - gradasi_vertex.xyz);
+            vec3 normal_dir = normalize(gradasi_normal.xyz);
+            float dif = clamp(dot(light_dir, normal_dir), 0.0, 1.0);
+
+            warna = texture(texture_data, texture_vertices_interp) * dif;
+            warna.w = 1.0;
         }
         `;
 
@@ -88,6 +110,38 @@
             1,0,1,
             1,0,0
         ]);
+
+        var normal_kubus = new Float32Array([
+            0,0,-1,
+            0,0,-1,
+            0,0,-1,
+            0,0,-1,
+            
+            1,0,0,
+            1,0,0,
+            1,0,0,
+            1,0,0,
+
+            0,0,1,
+            0,0,1,
+            0,0,1,
+            0,0,1,
+
+            -1,0,0,
+            -1,0,0,
+            -1,0,0,
+            -1,0,0,
+
+            0,1,0,
+            0,1,0,
+            0,1,0,
+            0,1,0,
+            
+            0,-1,0,
+            0,-1,0,
+            0,-1,0,
+            0,-1,0
+		]);		
 
         var koord_texture = new Float32Array([ 
 				0,0, 1,0, 1,1, 0,1,
@@ -180,6 +234,9 @@
         // Data Koordinat
         createAttributeBuffer('obj_vertices', 3, kubus);
 
+        // Data Normal
+        createAttributeBuffer('obj_normal', 3, normal_kubus);
+
         // Data Texture
         createAttributeBuffer('texture_vertices', 2, koord_texture);
         
@@ -222,7 +279,6 @@
         // ======================
 
         // Transformation Matrix
-        let matrixTransformCamera_loc = gl.getUniformLocation(program, 'matrixTransformCamera');
         const {mat4} = glMatrix;
         matrixTransformasi = mat4.create();
 
@@ -232,6 +288,12 @@
 
         matrixNormal = mat4.create();
         matrixTransformCamera = mat4.create();
+
+
+        let matrixTransformCamera_loc = gl.getUniformLocation(program, 'matrix_transform_camera');
+        let matrixNormal_loc = gl.getUniformLocation(program, 'matrix_normal');
+        let matrixCahaya_loc = gl.getUniformLocation(program, 'matrix_cahaya');
+        let lamp_loc = gl.getUniformLocation(program, 'lamp_vertices');
 
         let sudutx = 0;
         let suduty = 0;
@@ -258,12 +320,28 @@
             mat4.rotateY(matrixTransformasi, matrixTransformasi, Math.PI*sudutx/180.0);
             // mat4.scale(matrixTransformasi, matrixTransformasi, [0.5, 0.5, 0.5]);
 
+
+            // Send the matrix before Lighting
+            gl.uniformMatrix4fv(matrixCahaya_loc, false, matrixTransformasi);
+
+
+            // invert matriks benda utk menetralisir efek transasli+scaling pd normal
+            // matriks invers ini, matnorm, ikut dikirim ke shader
+            mat4.invert(matrixNormal, matrixTransformasi);
+		    mat4.transpose(matrixNormal, matrixNormal);
+            // Send Normal Matrix
+            gl.uniformMatrix4fv(matrixNormal_loc, false, matrixNormal);		
+
+
             // Calculate transform matrix with camera, then Send
             mat4.mul(matrixTransformCamera, camera, matrixTransformasi);
             gl.uniformMatrix4fv(matrixTransformCamera_loc, false, matrixTransformCamera);
 		    
 
+            // Send Lamp Pos
+		    gl.uniform3f(lamp_loc, -100,100,0);
             
+
             // Clear Screen
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -296,6 +374,7 @@
         }
         animate();
     </script>
+
     <script>
         // ======================
         // ===  Window Event  ===

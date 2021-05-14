@@ -350,27 +350,27 @@
 
         function check(e) {
             if (e.keyCode == 87){ //w key
-                pos_y+=0.05;
+                pos_z +=0.05;
                 animate();
             }
             if (e.keyCode == 65){ //a key
-                pos_x-=0.05;
-                animate();
-            }
-            if (e.keyCode == 83){ //s key
-                pos_y-=0.05;
-                animate();
-            }
-            if (e.keyCode == 68){ //d key
                 pos_x+=0.05;
                 animate();
             }
-            if(e.keyCode == 81){ //q key
+            if (e.keyCode == 83){ //s key
                 pos_z -=0.05;
                 animate();
             }
+            if (e.keyCode == 68){ //d key
+                pos_x-=0.05;
+                animate();
+            }
+            if(e.keyCode == 81){ //q key
+                pos_y+=0.05;
+                animate();
+            }
             if(e.keyCode==69){ // e key
-                pos_z +=0.05;
+                pos_y-=0.05;
                 animate();
             }
             

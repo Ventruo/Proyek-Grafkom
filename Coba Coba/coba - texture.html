@@ -54,6 +54,7 @@
     <script src='gl-matrix.js'></script>
     <script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
     <script src="./texture0.js"></script>
+    <script src="./texture1.js"></script>
 
     <script>
         // == Models ==
@@ -202,8 +203,9 @@
             return gltex;
         }
 
-        var gltex0;
+        var gltex0, gltex1;
         var img0 = new Image(); img0.onload=function() { gltex0=loadTexture(img0); }; img0.src=t0;
+        var img1 = new Image(); img1.onload=function() { gltex1=loadTexture(img1); }; img1.src=t1;
 
 
 
@@ -271,19 +273,19 @@
             gl.bindTexture(gl.TEXTURE_2D, gltex0);
             gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
 
-            gl.bindTexture(gl.TEXTURE_2D, gltex0);
+            gl.bindTexture(gl.TEXTURE_2D, gltex1);
             gl.drawArrays(gl.TRIANGLE_FAN, 4, 4);
 
             gl.bindTexture(gl.TEXTURE_2D, gltex0);
             gl.drawArrays(gl.TRIANGLE_FAN, 8, 4);
 
-            gl.bindTexture(gl.TEXTURE_2D, gltex0);
+            gl.bindTexture(gl.TEXTURE_2D, gltex1);
             gl.drawArrays(gl.TRIANGLE_FAN, 12, 4);
 
             gl.bindTexture(gl.TEXTURE_2D, gltex0);
             gl.drawArrays(gl.TRIANGLE_FAN, 16, 4);
 
-            gl.bindTexture(gl.TEXTURE_2D, gltex0);
+            gl.bindTexture(gl.TEXTURE_2D, gltex1);
             gl.drawArrays(gl.TRIANGLE_FAN, 20, 4);
             
 

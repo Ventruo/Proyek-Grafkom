@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .canvas{
+            margin: 0;
+            position: absolute; 
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+    <title>Load Object</title>
+</head>
+<body>
+    <canvas id="layar" width="600" height="600" class="canvas"></canvas>
+
+    <script>
+        let vs_text = `#version 300 es
+        precision mediump float;
+
+        in vec4 obj_vertices;
+        in vec4 obj_normal;
+        in vec2 texture_vertices;
+        
+        uniform mat4 matrix_transform_camera;  // matrix transformasi & cahaya
+        uniform mat4 matrix_normal; // matrix benda rotasinya saja utk normal
+        uniform mat4 matrix_cahaya; // matrik Cahaya benda
+        uniform vec3 lamp_vertices;
+
+        out vec4 gradasi_vertex;
+        out vec4 gradasi_normal;
+        out vec3 lamp_vertices_interp;
+
+        out vec2 texture_vertices_interp;
+        void main(){
+            gl_Position = matrix_transform_camera * obj_vertices;	
+
+            gradasi_vertex = matrix_cahaya * obj_vertices;
+            gradasi_normal = matrix_normal * obj_normal;
+            // gradasi_normal = obj_normal;
+            lamp_vertices_interp = lamp_vertices;
+
+            texture_vertices_interp = texture_vertices;
+        }
+        `;
+        
+        // fragment shader GLSL (GL Shading Language)
+        let fs_text = `#version 300 es
+        precision mediump float;
+
+        in vec4 gradasi_vertex;
+        in vec4 gradasi_normal;
+        in vec3 lamp_vertices_interp;
+        in vec2 texture_vertices_interp;
+
+        uniform sampler2D texture_data;
+        
+        out vec4 warna;
+        void main(){
+            vec3 light_dir = normalize(lamp_vertices_interp - gradasi_vertex.xyz);
+            vec3 normal_dir = normalize(gradasi_normal.xyz);
+            float dif = clamp(dot(light_dir, normal_dir), 0.0, 1.0);
+
+            warna = texture(texture_data, texture_vertices_interp) * dif;
+            warna.w = 1.0;
+        }
+        `;
+
+    </script>
+
+    <script src='gl-matrix.js'></script>
+    <script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
+    <script src="./texture_cereal.js"></script>
+
+    <script>
+        // == Models ==
+        var v_obj = [
+            13.530924,32.936581,-6.180120,
+            -11.223091,32.936565,-6.180087,
+            -11.223076,32.936565,5.610848,
+            13.530939,32.936581,5.610816,
+            13.530958,1.671376,5.610816,
+            13.530939,32.936581,5.610816,
+            -11.223076,32.936565,5.610848,
+            -11.223057,1.671360,5.610848,
+            -11.223057,1.671360,5.610848,
+            -11.223076,32.936565,5.610848,
+            -11.223091,32.936565,-6.180087,
+            -11.223072,1.671360,-6.180087,
+            -11.223072,1.671360,-6.180087,
+            13.530943,1.671376,-6.180120,
+            13.530958,1.671376,5.610816,
+            -11.223057,1.671360,5.610848,
+            13.530943,1.671376,-6.180120,
+            13.530924,32.936581,-6.180120,
+            13.530939,32.936581,5.610816,
+            13.530958,1.671376,5.610816,
+            -11.223072,1.671360,-6.180087,
+            -11.223091,32.936565,-6.180087,
+            13.530924,32.936581,-6.180120,
+            13.530943,1.671376,-6.180120,
+        ];
+
+        var vt_obj = [
+            0.019327,0.719229,
+            0.343870,0.726205,
+            0.343870,0.532087,
+            0.019327,0.532087,
+            0.345853,0.503421,
+            0.358255,0.041997,
+            0.043601,0.041997,
+            0.040500,0.494120,
+            0.951253,0.482092,
+            0.950628,0.064880,
+            0.786415,0.068228,
+            0.794082,0.478784,
+            0.382395,0.943257,
+            0.744543,0.958759,
+            0.753845,0.740859,
+            0.383170,0.735433,
+            0.940970,0.957712,
+            0.944869,0.564511,
+            0.795218,0.565976,
+            0.791544,0.956162,
+            0.729760,0.524556,
+            0.736348,0.032642,
+            0.405210,0.035743,
+            0.400821,0.515744,
+        ];
+
+        var n_obj = [
+            0.0000,1.0000,0.0000,
+            0.0000,0.0000,1.0000,
+            -1.0000,0.0000,0.0000,
+            0.0000,-1.0000,0.0000,
+            1.0000,0.0000,0.0000,
+            0.0000,0.0000,-1.0000,
+        ];
+
+        var f_obj = [
+            9,15,7,10,16,7,11,17,7,
+            9,15,7,11,17,7,12,18,7,
+            13,19,8,14,20,8,15,21,8,
+            13,19,8,15,21,8,16,22,8,
+            17,23,9,18,24,9,19,25,9,
+            17,23,9,19,25,9,20,26,9,
+            21,27,10,22,28,10,23,29,10,
+            21,27,10,23,29,10,24,30,10,
+            25,31,11,26,32,11,27,33,11,
+            25,31,11,27,33,11,28,34,11,
+            29,35,12,30,36,12,31,37,12,
+            29,35,12,31,37,12,32,38,12,
+        ];
+
+        // proses data benda dari array obj
+        // index di f mulai dari 1
+        var n_segitiga = f_obj.length/(9);
+        var v_obj_buffer = Array();
+        var vt_obj_buffer = Array();
+        var n_obj_buffer = Array();
+
+        dv = f_obj[0];
+        dvt = f_obj[1];
+        dn = f_obj[2];
+
+        // Vektor Benda
+        for(i = 0; i < n_segitiga; i++)
+        {
+            v_obj_buffer[i * 9 + 0] = v_obj[3 * (f_obj[i * 9 + 0] - dv) + 0];
+            v_obj_buffer[i * 9 + 1] = v_obj[3 * (f_obj[i * 9 + 0] - dv) + 1];
+            v_obj_buffer[i * 9 + 2] = v_obj[3 * (f_obj[i * 9 + 0] - dv) + 2];
+             
+            v_obj_buffer[i * 9 + 3] = v_obj[3 * (f_obj[i * 9 + 3] - dv) + 0];
+            v_obj_buffer[i * 9 + 4] = v_obj[3 * (f_obj[i * 9 + 3] - dv) + 1];
+            v_obj_buffer[i * 9 + 5] = v_obj[3 * (f_obj[i * 9 + 3] - dv) + 2];
+             
+            v_obj_buffer[i * 9 + 6] = v_obj[3 * (f_obj[i * 9 + 6] - dv) + 0];
+            v_obj_buffer[i * 9 + 7] = v_obj[3 * (f_obj[i * 9 + 6] - dv) + 1];
+            v_obj_buffer[i * 9 + 8] = v_obj[3 * (f_obj[i * 9 + 6] - dv) + 2];
+        }
+        v_obj_buffer = new Float32Array(v_obj_buffer);
+
+        // Vektor Texture Benda
+        for(i = 0; i < n_segitiga; i++)
+        {
+            vt_obj_buffer[i * 6 + 0] = vt_obj[2 * (f_obj[i * 9 + 1] - dvt) + 0];
+            vt_obj_buffer[i * 6 + 1] = vt_obj[2 * (f_obj[i * 9 + 1] - dvt) + 1];
+            
+            vt_obj_buffer[i * 6 + 2] = vt_obj[2 * (f_obj[i * 9 + 4] - dvt) + 0];
+            vt_obj_buffer[i * 6 + 3] = vt_obj[2 * (f_obj[i * 9 + 4] - dvt) + 1];
+            
+            vt_obj_buffer[i * 6 + 4] = vt_obj[2 * (f_obj[i * 9 + 7] - dvt) + 0];
+            vt_obj_buffer[i * 6 + 5] = vt_obj[2 * (f_obj[i * 9 + 7] - dvt) + 1];
+        }
+        vt_obj_buffer = new Float32Array(vt_obj_buffer);
+
+        // Vektor Normal Benda
+        for(i = 0; i < n_segitiga; i++)
+        {
+            n_obj_buffer[i * 9 + 0] = n_obj[3 * (f_obj[i * 9 + 2] - dn) + 0];
+            n_obj_buffer[i * 9 + 1] = n_obj[3 * (f_obj[i * 9 + 2] - dn) + 1];
+            n_obj_buffer[i * 9 + 2] = n_obj[3 * (f_obj[i * 9 + 2] - dn) + 2];
+            
+            n_obj_buffer[i * 9 + 3] = n_obj[3 * (f_obj[i * 9 + 5] - dn) + 0];
+            n_obj_buffer[i * 9 + 4] = n_obj[3 * (f_obj[i * 9 + 5] - dn) + 1];
+            n_obj_buffer[i * 9 + 5] = n_obj[3 * (f_obj[i * 9 + 5] - dn) + 2];
+
+            n_obj_buffer[i * 9 + 6] = n_obj[3 * (f_obj[i * 9 + 8] - dn) + 0];
+            n_obj_buffer[i * 9 + 7] = n_obj[3 * (f_obj[i * 9 + 8] - dn) + 1];
+            n_obj_buffer[i * 9 + 8] = n_obj[3 * (f_obj[i * 9 + 8] - dn) + 2];
+        }
+        n_obj_buffer = new Float32Array(n_obj_buffer);
+    </script>
+
+
+    <script>
+        // ======================
+        // ===   Functions    ===
+        // ======================
+        function createShader(gl, type, source){
+            var shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+            if (success) {
+                return shader;
+            }
+
+            console.log(gl.getShaderInfoLog(shader));
+            gl.deleteShader(shader);
+        }
+
+        function createProgram(gl, vs, fs){
+            var program = gl.createProgram();
+            gl.attachShader(program, vs);
+            gl.attachShader(program, fs);
+            gl.linkProgram(program);
+            gl.useProgram(program); 
+            var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+            if (success) {
+                return program;
+            }
+        }
+        
+        function resetCanvas(){
+            webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+
+            // Convert from clip space to pixels
+            gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+            // Clear Screen
+            gl.clearColor(0.3, 0.3, 0.3, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        }
+
+        function createAttributeBuffer(AttribOnShader, nPointer, vertices){
+            let location = gl.getAttribLocation(program, AttribOnShader);
+            let Buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, Buffer); 
+            gl.enableVertexAttribArray(location);
+            gl.vertexAttribPointer(location, nPointer, gl.FLOAT, false, 0, 0);
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+        }
+
+    </script>
+
+    <script>
+        /** @type {HTMLCanvasElement} */
+
+        // ======================
+        // === Initialization ===
+        // ======================
+        // Get WebGL Context
+        let layar = document.getElementById("layar");
+        let gl = layar.getContext('webgl2'); 
+        
+        // Create Vertex & Fragment Shader
+        var vs = createShader(gl, gl.VERTEX_SHADER, vs_text);
+        var fs = createShader(gl, gl.FRAGMENT_SHADER, fs_text);
+
+        // Create Program
+        var program = createProgram(gl, vs, fs);
+
+        // Clear Canvas
+        resetCanvas();
+    </script>
+
+    <script>
+        // ======================
+        // ===   Rendering    ===
+        // ======================
+        // Data Koordinat
+        createAttributeBuffer('obj_vertices', 3, v_obj_buffer);
+
+        // Data Normal
+        createAttributeBuffer('obj_normal', 3, n_obj_buffer);
+
+        // Data Texture
+        createAttributeBuffer('texture_vertices', 2, vt_obj_buffer);
+        
+        // Send Texture Data
+        let textureData_loc = gl.getUniformLocation(program, 'texture_data');
+        gl.uniform1i(textureData_loc, 0);
+
+
+
+        // Load Texture
+        function loadTexture(img){
+            gltex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, gltex);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+            
+            return gltex;
+        }
+
+        var gltex0;
+        var img0 = new Image(); img0.onload=function() { gltex0=loadTexture(img0); }; img0.src=cereal_texture;
+
+
+
+        // Set Z Buffer
+        // Cull Face Disabled karena kita menggambarnya dengan Front Facing Triangle
+        // gl.enable(gl.CULL_FACE);
+
+        // Use Z-Buffer
+        gl.enable(gl.DEPTH_TEST);
+    </script>
+
+    <script>
+        // ======================
+        // ===    Animate     ===
+        // ======================
+
+        // Transformation Matrix
+        const {mat4} = glMatrix;
+        matrixTransformasi = mat4.create();
+
+        proyeksi = mat4.create();
+        lookAt = mat4.create();
+        camera = mat4.create();
+
+        matrixNormal = mat4.create();
+        matrixTransformCamera = mat4.create();
+
+
+        let matrixTransformCamera_loc = gl.getUniformLocation(program, 'matrix_transform_camera');
+        let matrixNormal_loc = gl.getUniformLocation(program, 'matrix_normal');
+        let matrixCahaya_loc = gl.getUniformLocation(program, 'matrix_cahaya');
+        let lamp_loc = gl.getUniformLocation(program, 'lamp_vertices');
+
+        let sudutx = 0;
+        let suduty = 0;
+        let pos_x = 0;
+        let pos_y = 0;
+        let pos_z = 0;
+        function animate()
+		{
+            // Projection & Lookat = Camera
+            // mat4.lookAt(lookAt,[0,0,5], //eye
+            //                     [0,0,0], //looking at
+            //                     [0,1,0]); // up vector
+            // mat4.perspective(proyeksi, Math.PI*60/180, 1, 0.01, 100);
+            mat4.lookAt(lookAt, [10,-5,-5], [0,0,0], [0,1,0]);
+	        mat4.ortho(proyeksi, -36,36, -36,36, 0, 10000);
+
+            mat4.identity(camera);
+            mat4.multiply(camera, lookAt, camera);
+            mat4.multiply(camera, proyeksi, camera);
+
+
+            // Calculate Transformation Matrix
+            mat4.identity(matrixTransformasi);
+            mat4.translate(matrixTransformasi, matrixTransformasi, [pos_x,-10,pos_z])
+            // mat4.rotateX(matrixTransformasi, matrixTransformasi, Math.PI*suduty/180.0);
+            mat4.rotateY(matrixTransformasi, matrixTransformasi, Math.PI*sudutx/180.0);
+            // mat4.scale(matrixTransformasi, matrixTransformasi, [0.5, 0.5, 0.5]);
+
+
+            // Send the matrix before Lighting
+            gl.uniformMatrix4fv(matrixCahaya_loc, false, matrixTransformasi);
+
+
+            // invert matriks benda utk menetralisir efek transasli+scaling pd normal
+            // matriks invers ini, matnorm, ikut dikirim ke shader
+            mat4.invert(matrixNormal, matrixTransformasi);
+		    mat4.transpose(matrixNormal, matrixNormal);
+            // Send Normal Matrix
+            gl.uniformMatrix4fv(matrixNormal_loc, false, matrixNormal);		
+
+
+            // Calculate transform matrix with camera, then Send
+            mat4.mul(matrixTransformCamera, camera, matrixTransformasi);
+            gl.uniformMatrix4fv(matrixTransformCamera_loc, false, matrixTransformCamera);
+		    
+
+            // Send Lamp Pos
+		    gl.uniform3f(lamp_loc, -100,100,0);
+            
+
+            // Clear Screen
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+
+            // Draw Geometry
+            gl.bindTexture(gl.TEXTURE_2D, gltex0);
+	        gl.drawArrays(gl.TRIANGLES, 0, 3*12);
+            
+
+            sudutx += 1;
+            suduty += 1;
+		    sudutx%=360;
+            suduty%=360;
+            requestAnimationFrame(animate, layar);
+        }
+        animate();
+    </script>
+
+    <script>
+        // ======================
+        // ===  Window Event  ===
+        // ======================
+
+        // window.addEventListener('keydown', this.keyBoardButton, false);
+        // function keyBoardButton(e) {
+        //     if (e.keyCode == 87){ //w key
+        //         pos_z +=0.05;
+        //         animate();
+        //     }
+        //     if (e.keyCode == 65){ //a key
+        //         pos_x+=0.05;
+        //         animate();
+        //     }
+        //     if (e.keyCode == 83){ //s key
+        //         pos_z -=0.05;
+        //         animate();
+        //     }
+        //     if (e.keyCode == 68){ //d key
+        //         pos_x-=0.05;
+        //         animate();
+        //     }
+        //     if(e.keyCode == 81){ //q key
+        //         pos_y+=0.05;
+        //         animate();
+        //     }
+        //     if(e.keyCode==69){ // e key
+        //         pos_y-=0.05;
+        //         animate();
+        //     }
+        // }
+    </script>
+</body>
+</html>

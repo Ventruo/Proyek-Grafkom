@@ -1,0 +1,26 @@
+# Blender MTL File: 'rocket + planet.blend'
+# Material Count: 2
+
+newmtl planet.003
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:\\Users\\lawre\\Downloads\\Planet\\2e969e30d2b1476aa1390ff8882702df.png
+map_Ke C:\\c4176862cd7a444fa3b4dc60881f4105.png
+
+newmtl planet.004
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:\\Users\\lawre\\Downloads\\Planet\\2e969e30d2b1476aa1390ff8882702df.png
+map_Ke C:\\c4176862cd7a444fa3b4dc60881f4105.png

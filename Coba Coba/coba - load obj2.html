@@ -75,13 +75,13 @@
     <script src='gl-matrix.js'></script>
     <script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
     <!-- Rocket -->
-    <!-- <script src="../Objects/Rocket/rocket_V.js"></script>
+     <script src="../Objects/Rocket/rocket_V.js"></script>
     <script src="../Objects/Rocket/rocket_Vn.js"></script>
     <script src="../Objects/Rocket/rocket_Vt.js"></script>
-    <script src="../Objects/Rocket/rocket_F.js"></script> -->
+    <script src="../Objects/Rocket/rocket_F.js"></script> 
 
     <!-- Planet -->
-    <!-- <script src="../Objects/Planet/planet_V.js"></script>
+     <!--<script src="../Objects/Planet/planet_V.js"></script>
     <script src="../Objects/Planet/planet_Vn.js"></script>
     <script src="../Objects/Planet/planet_Vt.js"></script>
     <script src="../Objects/Planet/planet_F.js"></script> -->
@@ -318,11 +318,12 @@
         let matrixCahaya_loc = gl.getUniformLocation(program, 'matrix_cahaya');
         let lamp_loc = gl.getUniformLocation(program, 'lamp_vertices');
 
-        let sudutx = 0;
-        let suduty = 0;
+        let sudutx = 180;
+        let suduty = 90;
         let pos_x = 0;
         let pos_y = 0;
         let pos_z = 0;
+        let sudutz = 180;
         function animate()
 		{
             // Projection & Lookat = Camera
@@ -337,9 +338,9 @@
             // Calculate Transformation Matrix
             mat4.identity(matrixTransformasi);
             mat4.translate(matrixTransformasi, matrixTransformasi, [pos_x,pos_y,pos_z])
-            // mat4.rotateX(matrixTransformasi, matrixTransformasi, Math.PI*0/180.0);
-            // mat4.rotateY(matrixTransformasi, matrixTransformasi, Math.PI*90/180.0);
-            // mat4.rotateZ(matrixTransformasi, matrixTransformasi, Math.PI*90/180.0);
+            // mat4.rotateX(matrixTransformasi, matrixTransformasi, Math.PI*suduty/180.0);
+            // mat4.rotateY(matrixTransformasi, matrixTransformasi, Math.PI*sudutx/180.0);
+            // mat4.rotateZ(matrixTransformasi, matrixTransformasi, Math.PI*sudutz/180.0);
             // mat4.scale(matrixTransformasi, matrixTransformasi, [0.5, 0.5, 0.5]);
 
 
@@ -373,11 +374,13 @@
 	        gl.drawArrays(gl.TRIANGLES, 0, 3 * n_segitiga);
             
 
-            sudutx += 0.01;
-            suduty += 0.01;
-		    sudutx%=360;
-            suduty%=360;
-            // requestAnimationFrame(animate, layar);
+            //sudutx += 0.01;
+            //suduty += 0.01;
+		    //sudutx%=360;
+            //suduty%=360;
+            sudutz += 0.1;
+            sudutz%=360;
+            requestAnimationFrame(animate, layar);
         }
         animate();
     </script>
@@ -391,27 +394,27 @@
         function keyBoardButton(e) {
             if (e.keyCode == 87){ //w key
                 pos_z += 0.5;
-                animate();
+                //animate();
             }
             if (e.keyCode == 65){ //a key
                 pos_x += 0.5;
-                animate();
+                //animate();
             }
             if (e.keyCode == 83){ //s key
                 pos_z -= 0.5;
-                animate();
+                //animate();
             }
             if (e.keyCode == 68){ //d key
                 pos_x -= 0.5;
-                animate();
+                //animate();
             }
             if(e.keyCode == 81){ //q key
                 pos_y += 0.5;
-                animate();
+                //animate();
             }
             if(e.keyCode==69){ // e key
                 pos_y -= 0.5;
-                animate();
+                //animate();
             }
         }
     </script>

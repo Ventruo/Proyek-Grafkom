@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .canvas{
+            margin: 0;
+            position: absolute; 
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+    <title>Load Object Planet</title>
+</head>
+<body>
+    <canvas id="layar" width="600" height="600" class="canvas"></canvas>
+
+    <script>
+        let vs_text = `#version 300 es
+        precision mediump float;
+
+        in vec4 obj_vertices;
+        in vec4 obj_normal;
+        in vec2 texture_vertices;
+        
+        uniform mat4 matrix_transform_camera;  // matrix transformasi & cahaya
+        uniform mat4 matrix_normal; // matrix benda rotasinya saja utk normal
+        uniform mat4 matrix_cahaya; // matrik Cahaya benda
+        uniform vec3 lamp_vertices;
+
+        out vec4 gradasi_vertex;
+        out vec4 gradasi_normal;
+        out vec3 lamp_vertices_interp;
+
+        out vec2 texture_vertices_interp;
+        void main(){
+            gl_Position = matrix_transform_camera * obj_vertices;	
+
+            gradasi_vertex = matrix_cahaya * obj_vertices;
+            gradasi_normal = matrix_normal * obj_normal;
+            // gradasi_normal = obj_normal;
+            lamp_vertices_interp = lamp_vertices;
+
+            texture_vertices_interp = texture_vertices;
+        }
+        `;
+        
+        // fragment shader GLSL (GL Shading Language)
+        let fs_text = `#version 300 es
+        precision mediump float;
+
+        in vec4 gradasi_vertex;
+        in vec4 gradasi_normal;
+        in vec3 lamp_vertices_interp;
+        in vec2 texture_vertices_interp;
+
+        uniform sampler2D texture_data;
+        
+        out vec4 warna;
+        void main(){
+            vec3 light_dir = normalize(lamp_vertices_interp - gradasi_vertex.xyz);
+            vec3 normal_dir = normalize(gradasi_normal.xyz);
+            float dif = clamp(dot(light_dir, normal_dir), 0.0, 1.0);
+
+            warna = texture(texture_data, texture_vertices_interp) * dif;
+            warna.w = 1.0;
+        }
+        `;
+
+    </script>
+
+    <script src='gl-matrix.js'></script>
+    <script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
+    <!-- Rocket -->
+    <script src="../Objects/Rocket/rocket_V.js"></script>
+    <script src="../Objects/Rocket/rocket_Vn.js"></script>
+    <script src="../Objects/Rocket/rocket_Vt.js"></script>
+    <script src="../Objects/Rocket/rocket_F.js"></script>
+
+    <!-- Planet -->
+    <script src="../Objects/Planet/planet_V.js"></script>
+    <script src="../Objects/Planet/planet_Vn.js"></script>
+    <script src="../Objects/Planet/planet_Vt.js"></script>
+    <script src="../Objects/Planet/planet_F.js"></script>
+
+    <!-- Rocket + Planet -->
+    <!-- <script src="../Objects/Rocket + Planet/rocket + planet_V.js"></script>
+    <script src="../Objects/Rocket + Planet/rocket + planet_Vn.js"></script>
+    <script src="../Objects/Rocket + Planet/rocket + planet_Vt.js"></script>
+    <script src="../Objects/Rocket + Planet/rocket + planet_F.js"></script> -->
+
+    <!-- Rubbles -->
+    <!-- <script src="../Objects/Rubbles/rubbles_V.js"></script>
+    <script src="../Objects/Rubbles/rubbles_Vn.js"></script>
+    <script src="../Objects/Rubbles/rubbles_Vt.js"></script>
+    <script src="../Objects/Rubbles/rubbles_F.js"></script> -->
+
+    <!-- All -->
+    <!--<script src="../Objects/All/All_V.js"></script>
+    <script src="../Objects/All/All_Vn.js"></script>
+    <script src="../Objects/All/All_Vt.js"></script>
+    <script src="../Objects/All/All_F.js"></script>-->
+
+    <!-- Texture -->
+    <script src="../Objects/planet_texture.js"></script>
+
+    <script>
+        // ======================
+        // ===   Functions    ===
+        // ======================
+        // Vektor Benda
+        function loadVektor(n_segitiga, v_obj_buffer, v_obj, f_obj, dv){
+            for(i = 0; i < n_segitiga; i++){
+                v_obj_buffer[i * 9 + 0] = v_obj[3 * (f_obj[i * 9 + 0] - dv) + 0];
+                v_obj_buffer[i * 9 + 1] = v_obj[3 * (f_obj[i * 9 + 0] - dv) + 1];
+                v_obj_buffer[i * 9 + 2] = v_obj[3 * (f_obj[i * 9 + 0] - dv) + 2];
+                
+                v_obj_buffer[i * 9 + 3] = v_obj[3 * (f_obj[i * 9 + 3] - dv) + 0];
+                v_obj_buffer[i * 9 + 4] = v_obj[3 * (f_obj[i * 9 + 3] - dv) + 1];
+                v_obj_buffer[i * 9 + 5] = v_obj[3 * (f_obj[i * 9 + 3] - dv) + 2];
+                
+                v_obj_buffer[i * 9 + 6] = v_obj[3 * (f_obj[i * 9 + 6] - dv) + 0];
+                v_obj_buffer[i * 9 + 7] = v_obj[3 * (f_obj[i * 9 + 6] - dv) + 1];
+                v_obj_buffer[i * 9 + 8] = v_obj[3 * (f_obj[i * 9 + 6] - dv) + 2];
+            }
+            v_obj_buffer = new Float32Array(v_obj_buffer);
+            return v_obj_buffer;
+        }
+        
+        // Vektor Texture Benda
+        function loadVektorTexture(n_segitiga, vt_obj_buffer, vt_obj,f_obj,dvt){
+            for(i = 0; i < n_segitiga; i++)
+            {
+                vt_obj_buffer[i * 6 + 0] = vt_obj[2 * (f_obj[i * 9 + 1] - dvt) + 0];
+                vt_obj_buffer[i * 6 + 1] = vt_obj[2 * (f_obj[i * 9 + 1] - dvt) + 1];
+                
+                vt_obj_buffer[i * 6 + 2] = vt_obj[2 * (f_obj[i * 9 + 4] - dvt) + 0];
+                vt_obj_buffer[i * 6 + 3] = vt_obj[2 * (f_obj[i * 9 + 4] - dvt) + 1];
+                
+                vt_obj_buffer[i * 6 + 4] = vt_obj[2 * (f_obj[i * 9 + 7] - dvt) + 0];
+                vt_obj_buffer[i * 6 + 5] = vt_obj[2 * (f_obj[i * 9 + 7] - dvt) + 1];
+            }
+            vt_obj_buffer = new Float32Array(vt_obj_buffer);
+            return vt_obj_buffer;
+        }
+        
+        // Vektor Normal Benda
+        function loadVektorNormal(n_segitiga, n_obj_buffer,n_obj,f_obj,dn){
+            for(i = 0; i < n_segitiga; i++)
+            {
+                n_obj_buffer[i * 9 + 0] = n_obj[3 * (f_obj[i * 9 + 2] - dn) + 0];
+                n_obj_buffer[i * 9 + 1] = n_obj[3 * (f_obj[i * 9 + 2] - dn) + 1];
+                n_obj_buffer[i * 9 + 2] = n_obj[3 * (f_obj[i * 9 + 2] - dn) + 2];
+                
+                n_obj_buffer[i * 9 + 3] = n_obj[3 * (f_obj[i * 9 + 5] - dn) + 0];
+                n_obj_buffer[i * 9 + 4] = n_obj[3 * (f_obj[i * 9 + 5] - dn) + 1];
+                n_obj_buffer[i * 9 + 5] = n_obj[3 * (f_obj[i * 9 + 5] - dn) + 2];
+
+                n_obj_buffer[i * 9 + 6] = n_obj[3 * (f_obj[i * 9 + 8] - dn) + 0];
+                n_obj_buffer[i * 9 + 7] = n_obj[3 * (f_obj[i * 9 + 8] - dn) + 1];
+                n_obj_buffer[i * 9 + 8] = n_obj[3 * (f_obj[i * 9 + 8] - dn) + 2];
+            }
+            n_obj_buffer = new Float32Array(n_obj_buffer);
+            return n_obj_buffer;
+        }
+        
+        function createShader(gl, type, source){
+            var shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+            if (success) {
+                return shader;
+            }
+
+            console.log(gl.getShaderInfoLog(shader));
+            gl.deleteShader(shader);
+        }
+
+        function createProgram(gl, vs, fs){
+            var program = gl.createProgram();
+            gl.attachShader(program, vs);
+            gl.attachShader(program, fs);
+            gl.linkProgram(program);
+            gl.useProgram(program); 
+            var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+            if (success) {
+                return program;
+            }
+        }
+        
+        function resetCanvas(){
+            webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+
+            // Convert from clip space to pixels
+            gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+            // Clear Screen
+            gl.clearColor(0.5, 0.5, 0.5, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        }
+
+        function createAttributeBuffer(vertices){
+            let Buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, Buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+            return Buffer;
+        }
+
+        function loadBufferData(AttribOnShader, nPointer, Buffer){
+            let location = gl.getAttribLocation(program, AttribOnShader);
+            gl.bindBuffer(gl.ARRAY_BUFFER, Buffer);
+            gl.enableVertexAttribArray(location);
+            gl.vertexAttribPointer(location, nPointer, gl.FLOAT, false, 0, 0);
+        }
+
+        function loadTexture(img){
+            gltex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, gltex);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+            
+            return gltex;
+        }
+
+    </script>
+
+    <script>
+        // ======================
+        // ===     Models     ===
+        // ======================
+
+        // Roket
+        var v_obj_roket = v_roket;
+        var vt_obj_roket = vt_roket;
+        var n_obj_roket = vn_roket;
+        var f_obj_roket = f_roket;
+
+        var n_segitiga_roket = f_obj_roket.length/(9);
+        var v_obj_buffer_roket = Array();
+        var vt_obj_buffer_roket = Array();
+        var n_obj_buffer_roket = Array();
+
+        dv_roket = f_obj_roket[0];
+        dvt_roket = f_obj_roket[1];
+        dn_roket = f_obj_roket[2];
+
+        v_obj_buffer_roket = loadVektor(n_segitiga_roket, v_obj_buffer_roket, v_obj_roket, f_obj_roket, dv_roket);
+        vt_obj_buffer_roket = loadVektorTexture(n_segitiga_roket, vt_obj_buffer_roket, vt_obj_roket, f_obj_roket, dvt_roket);
+        n_obj_buffer_roket = loadVektorNormal(n_segitiga_roket, n_obj_buffer_roket, n_obj_roket, f_obj_roket, dn_roket);
+        
+
+        // Planet
+        var v_obj_planet = v_planet;
+        var vt_obj_planet = vt_planet;
+        var n_obj_planet = vn_planet;
+        var f_obj_planet = f_planet;
+        
+        var n_segitiga_planet = f_obj_planet.length/(9);
+        var v_obj_buffer_planet = Array();
+        var vt_obj_buffer_planet = Array();
+        var n_obj_buffer_planet = Array();
+
+        dv_planet = f_obj_planet[0];
+        dvt_planet = f_obj_planet[1];
+        dn_planet = f_obj_planet[2];
+
+        v_obj_buffer_planet = loadVektor(n_segitiga_planet, v_obj_buffer_planet, v_obj_planet, f_obj_planet, dv_planet);
+        vt_obj_buffer_planet = loadVektorTexture(n_segitiga_planet, vt_obj_buffer_planet, vt_obj_planet, f_obj_planet, dvt_planet);
+        n_obj_buffer_planet = loadVektorNormal(n_segitiga_planet, n_obj_buffer_planet, n_obj_planet, f_obj_planet, dn_planet);
+
+        // Rubbles
+        //insert code here
+    </script>
+
+    <script>
+        /** @type {HTMLCanvasElement} */
+
+        // ======================
+        // === Initialization ===
+        // ======================
+        // Get WebGL Context
+        let layar = document.getElementById("layar");
+        let gl = layar.getContext('webgl2'); 
+        
+        // Create Vertex & Fragment Shader
+        var vs = createShader(gl, gl.VERTEX_SHADER, vs_text);
+        var fs = createShader(gl, gl.FRAGMENT_SHADER, fs_text);
+
+        // Create Program
+        var program = createProgram(gl, vs, fs);
+
+        // Clear Canvas
+        resetCanvas();
+    </script>
+
+    <script>
+        // ======================
+        // ===   Rendering    ===
+        // ======================
+        //Roket
+        // Data Koordinat
+        let obj_vertices_roket =  createAttributeBuffer(v_obj_buffer_roket);
+
+        // Data Normal
+        let obj_normal_roket = createAttributeBuffer(n_obj_buffer_roket);
+
+        // Data Texture
+        let texture_vertices_roket = createAttributeBuffer(vt_obj_buffer_roket);
+        
+
+        // Planet
+        // Data Koordinat
+        let obj_vertices_planet =  createAttributeBuffer(v_obj_buffer_planet);
+
+        // Data Normal
+        let obj_normal_planet = createAttributeBuffer(n_obj_buffer_planet);
+
+        // Data Texture
+        let texture_vertices_planet = createAttributeBuffer(vt_obj_buffer_planet);
+
+
+        // Send Texture Data
+        let textureData_loc = gl.getUniformLocation(program, 'texture_data');
+        gl.uniform1i(textureData_loc, 0);
+
+
+        // Load Texture
+        var gltex0;
+        var img0 = new Image(); img0.onload=function() { gltex0=loadTexture(img0); }; img0.src=planet_map;
+
+    </script>
+
+    <script>
+        // ======================
+        // ===    Animate     ===
+        // ======================
+
+        // Transformation Matrix
+        const {mat4} = glMatrix;
+        matrixTransformasi = mat4.create();
+
+        proyeksi = mat4.create();
+        lookAt = mat4.create();
+        camera = mat4.create();
+
+        matrixNormal = mat4.create();
+        matrixTransformCamera = mat4.create();
+
+
+        let matrixTransformCamera_loc = gl.getUniformLocation(program, 'matrix_transform_camera');
+        let matrixNormal_loc = gl.getUniformLocation(program, 'matrix_normal');
+        let matrixCahaya_loc = gl.getUniformLocation(program, 'matrix_cahaya');
+        let lamp_loc = gl.getUniformLocation(program, 'lamp_vertices');
+
+        let sudutx = 180;
+        let suduty = 90;
+        let sudutz = 90;
+        let pos_x = 0;
+        let pos_y = 0;
+        let pos_z = 0;
+
+        let elevate_speed_roket = 0.005;
+        let elevate_min_roket = 0.0;
+        let elevate_max_roket = 2.0;
+        let elevate_x_roket = 0;
+        let elevate_y_roket = 0;
+        let elevate_z_roket = 0;
+        let elevating = true;
+        
+        function animate()
+		{
+            // Set Z Buffer
+            // Cull Face Disabled karena kita menggambarnya dengan Front Facing Triangle
+            // gl.enable(gl.CULL_FACE);
+
+            // Use Z-Buffer
+            gl.enable(gl.DEPTH_TEST);
+
+            // Clear Screen
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+
+
+            // Projection & Lookat = Camera
+            mat4.lookAt(lookAt,[0,0,15],[0,0,0],[0,1,0]);
+            mat4.perspective(proyeksi, Math.PI*30/180, 1, 0.001, 3000000);
+            
+            mat4.identity(camera);
+            mat4.multiply(camera, lookAt, camera);
+            mat4.multiply(camera, proyeksi, camera);
+
+
+
+            // == Planet ==
+            // Calculate Transformation Matrix
+            mat4.identity(matrixTransformasi);
+            mat4.translate(matrixTransformasi, matrixTransformasi, [0, 0, 0])
+            mat4.rotateX(matrixTransformasi, matrixTransformasi, Math.PI*suduty/180.0);
+            mat4.rotateY(matrixTransformasi, matrixTransformasi, Math.PI*sudutx/180.0);
+            mat4.rotateZ(matrixTransformasi, matrixTransformasi, Math.PI*sudutz/180.0);
+            //mat4.scale(matrixTransformasi, matrixTransformasi, [0.5, 0.5, 0.5]);
+
+
+            // Send the matrix before Lighting
+            gl.uniformMatrix4fv(matrixCahaya_loc, false, matrixTransformasi);
+
+
+            // invert matriks benda utk menetralisir efek transasli+scaling pd normal
+            // matriks invers ini, matnorm, ikut dikirim ke shader
+            mat4.invert(matrixNormal, matrixTransformasi);
+		    mat4.transpose(matrixNormal, matrixNormal);
+            // Send Normal Matrix
+            gl.uniformMatrix4fv(matrixNormal_loc, false, matrixNormal);		
+
+
+            // Calculate transform matrix with camera, then Send
+            mat4.mul(matrixTransformCamera, camera, matrixTransformasi);
+            gl.uniformMatrix4fv(matrixTransformCamera_loc, false, matrixTransformCamera);
+		    
+
+            // Load Buffer data ke Shader
+            loadBufferData('obj_vertices', 3, obj_vertices_planet);
+            loadBufferData('obj_normal', 3, obj_normal_planet);
+            loadBufferData('texture_vertices', 2, texture_vertices_planet);
+
+            // Draw Geometry - Planet
+            gl.bindTexture(gl.TEXTURE_2D, gltex0);
+	        gl.drawArrays(gl.TRIANGLES, 0, 3 * n_segitiga_planet);
+
+            
+
+
+
+            // == Roket ==
+            // Calculate Transformation Matrix
+            mat4.identity(matrixTransformasi);
+            mat4.rotateX(matrixTransformasi, matrixTransformasi, Math.PI*suduty/180.0);
+            mat4.rotateY(matrixTransformasi, matrixTransformasi, Math.PI*sudutx/180.0);
+            mat4.rotateZ(matrixTransformasi, matrixTransformasi, Math.PI*sudutz/180.0);
+            mat4.translate(matrixTransformasi, matrixTransformasi, [elevate_x_roket, elevate_y_roket, elevate_z_roket])
+            // mat4.scale(matrixTransformasi, matrixTransformasi, [0.5, 0.5, 0.5]);
+
+
+            // Send the matrix before Lighting
+            gl.uniformMatrix4fv(matrixCahaya_loc, false, matrixTransformasi);
+
+
+            // invert matriks benda utk menetralisir efek transasli+scaling pd normal
+            // matriks invers ini, matnorm, ikut dikirim ke shader
+            mat4.invert(matrixNormal, matrixTransformasi);
+		    mat4.transpose(matrixNormal, matrixNormal);
+            // Send Normal Matrix
+            gl.uniformMatrix4fv(matrixNormal_loc, false, matrixNormal);		
+
+
+            // Calculate transform matrix with camera, then Send
+            mat4.mul(matrixTransformCamera, camera, matrixTransformasi);
+            gl.uniformMatrix4fv(matrixTransformCamera_loc, false, matrixTransformCamera);
+
+
+            // Load Buffer data ke Shader
+            loadBufferData('obj_vertices', 3, obj_vertices_roket);
+            loadBufferData('obj_normal', 3, obj_normal_roket);
+            loadBufferData('texture_vertices', 2, texture_vertices_roket);
+
+            // Draw Geometry - Roket
+            gl.bindTexture(gl.TEXTURE_2D, gltex0);
+	        gl.drawArrays(gl.TRIANGLES, 0, 3 * n_segitiga_roket);
+            
+
+
+
+            // Send Lamp Pos
+		    gl.uniform3f(lamp_loc, 0,10,10);
+
+            //sudutx += 0.5;
+		    //sudutx%=360;
+            //suduty += 1;
+            //suduty%=360;
+            sudutz+=0.5;
+            sudutz%=360;
+
+            // Rocket Elevation Animation
+            if (elevating){
+                elevate_x_roket += elevate_speed_roket;
+
+                elevate_y_roket = 0;
+
+                elevate_z_roket += elevate_speed_roket;                
+            }else{
+                elevate_x_roket -= elevate_speed_roket;
+
+                elevate_y_roket = 0;
+
+                elevate_z_roket -= elevate_speed_roket;    
+            }
+
+            if (elevate_x_roket >= elevate_max_roket){
+                elevating = false;
+            }
+            if (elevate_x_roket <= elevate_min_roket){
+                elevating = true;
+            }
+            
+            
+            requestAnimationFrame(animate, layar);
+        }
+        animate();
+    </script>
+
+    <script>
+        // ======================
+        // ===  Window Event  ===
+        // ======================
+
+        window.addEventListener('keydown', this.keyBoardButton, false);
+        function keyBoardButton(e) {
+            if (e.keyCode == 87){ //w key
+                pos_z += 0.1;
+                pos_x += 0.1;
+                //animate();
+            }
+            if (e.keyCode == 65){ //a key
+                pos_x += 0.5;
+                //animate();
+            }
+            if (e.keyCode == 83){ //s key
+                pos_z -= 0.1;
+                pos_x -= 0.1;
+                //animate();
+            }
+            if (e.keyCode == 68){ //d key
+                pos_x -= 0.5;
+                //animate();
+            }
+            if(e.keyCode == 81){ //q key
+                pos_y += 0.5;
+                //animate();
+            }
+            if(e.keyCode==69){ // e key
+                pos_y -= 0.5;
+                //animate();
+            }
+        }
+    </script>
+</body>
+</html>

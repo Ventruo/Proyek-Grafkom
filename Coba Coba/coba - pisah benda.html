@@ -93,10 +93,10 @@
     <script src="../Objects/Rocket + Planet/rocket + planet_F.js"></script> -->
 
     <!-- Rubbles -->
-    <!-- <script src="../Objects/Rubbles/rubbles_V.js"></script>
+    <script src="../Objects/Rubbles/rubbles_V.js"></script>
     <script src="../Objects/Rubbles/rubbles_Vn.js"></script>
     <script src="../Objects/Rubbles/rubbles_Vt.js"></script>
-    <script src="../Objects/Rubbles/rubbles_F.js"></script> -->
+    <script src="../Objects/Rubbles/rubbles_F.js"></script>
 
     <!-- All -->
     <!--<script src="../Objects/All/All_V.js"></script>
@@ -277,7 +277,24 @@
         n_obj_buffer_planet = loadVektorNormal(n_segitiga_planet, n_obj_buffer_planet, n_obj_planet, f_obj_planet, dn_planet);
 
         // Rubbles
-        //insert code here
+        var v_obj_rubble = v_rubble;
+        var vt_obj_rubble = vt_rubble;
+        var n_obj_rubble = vn_rubble;
+        var f_obj_rubble = f_rubble;
+        
+        var n_segitiga_rubble = f_obj_rubble.length/(9);
+        var v_obj_buffer_rubble = Array();
+        var vt_obj_buffer_rubble = Array();
+        var n_obj_buffer_rubble = Array();
+
+        dv_rubble = f_obj_rubble[0];
+        dvt_rubble = f_obj_rubble[1];
+        dn_rubble = f_obj_rubble[2];
+
+        v_obj_buffer_rubble = loadVektor(n_segitiga_rubble, v_obj_buffer_rubble, v_obj_rubble, f_obj_rubble, dv_rubble);
+        vt_obj_buffer_rubble = loadVektorTexture(n_segitiga_rubble, vt_obj_buffer_rubble, vt_obj_rubble, f_obj_rubble, dvt_rubble);
+        n_obj_buffer_rubble = loadVektorNormal(n_segitiga_rubble, n_obj_buffer_rubble, n_obj_rubble, f_obj_rubble, dn_rubble);
+
     </script>
 
     <script>
@@ -326,6 +343,15 @@
         // Data Texture
         let texture_vertices_planet = createAttributeBuffer(vt_obj_buffer_planet);
 
+        //Rubble
+        //Data Koordinat
+        let obj_vertices_rubble =  createAttributeBuffer(v_obj_buffer_rubble);
+
+        // Data Normal
+        let obj_normal_rubble = createAttributeBuffer(n_obj_buffer_rubble);
+
+        // Data Texture
+        let texture_vertices_rubble = createAttributeBuffer(vt_obj_buffer_rubble);
 
         // Send Texture Data
         let textureData_loc = gl.getUniformLocation(program, 'texture_data');
@@ -476,7 +502,41 @@
 	        gl.drawArrays(gl.TRIANGLES, 0, 3 * n_segitiga_roket);
             
 
+            //Rubbles
+            // Calculate Transformation Matrix
+            mat4.identity(matrixTransformasi);
+            mat4.translate(matrixTransformasi, matrixTransformasi, [0, 0, 0]);
+            mat4.rotateX(matrixTransformasi, matrixTransformasi, Math.PI*90/180.0);
+            //mat4.rotateY(matrixTransformasi, matrixTransformasi, Math.PI*sudutx/180.0);
+            mat4.rotateZ(matrixTransformasi, matrixTransformasi, Math.PI*sudutz/180.0);            
+            // mat4.scale(matrixTransformasi, matrixTransformasi, [0.5, 0.5, 0.5]);
 
+
+            // Send the matrix before Lighting
+            gl.uniformMatrix4fv(matrixCahaya_loc, false, matrixTransformasi);
+
+
+            // invert matriks benda utk menetralisir efek transasli+scaling pd normal
+            // matriks invers ini, matnorm, ikut dikirim ke shader
+            mat4.invert(matrixNormal, matrixTransformasi);
+		    mat4.transpose(matrixNormal, matrixNormal);
+            // Send Normal Matrix
+            gl.uniformMatrix4fv(matrixNormal_loc, false, matrixNormal);		
+
+
+            // Calculate transform matrix with camera, then Send
+            mat4.mul(matrixTransformCamera, camera, matrixTransformasi);
+            gl.uniformMatrix4fv(matrixTransformCamera_loc, false, matrixTransformCamera);
+
+
+            // Load Buffer data ke Shader
+            loadBufferData('obj_vertices', 3, obj_vertices_rubble);
+            loadBufferData('obj_normal', 3, obj_normal_rubble);
+            loadBufferData('texture_vertices', 2, texture_vertices_rubble);
+
+            // Draw Geometry - rubble
+            gl.bindTexture(gl.TEXTURE_2D, gltex0);
+	        gl.drawArrays(gl.TRIANGLES, 0, 3 * n_segitiga_rubble);
 
             // Send Lamp Pos
 		    gl.uniform3f(lamp_loc, 0,10,10);

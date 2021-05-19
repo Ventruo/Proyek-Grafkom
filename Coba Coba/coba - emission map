@@ -15,7 +15,7 @@
             height : 100%;
         }
     </style>
-    <title>Background + Lamp</title>
+    <title>Emission Map</title>
 </head>
 <body>
     <canvas id="layar" class="canvas"></canvas>
@@ -54,6 +54,7 @@
         struct Material {
             sampler2D diffuse;
             sampler2D specular;
+            sampler2D emission;
             float shininess;
         };
 
@@ -100,13 +101,16 @@
             float spec = pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
 
             vec3 specular = light.specular * light.color * spec * texture(material.specular, texture_vertices_interp).rgb;
+
+            // emission
+            vec3 emission = texture(material.emission, texture_vertices_interp).rgb;
             
             if (background.flag == 1.0)
                 warna = vec4(texture(light.texture, texture_vertices_interp).rgb, 1.0);
             else if (background.flag == 0.5)
                 warna = vec4(texture(background.texture, texture_vertices_interp).rgb, 1.0);
             else
-                warna = vec4((ambient + diffuse + specular), 1.0);
+                warna = vec4((ambient + diffuse + specular + emission), 1.0);
         }
         `;
 
@@ -146,7 +150,8 @@
 
     <!-- Texture -->
     <script src="../Objects/planet_texture.js"></script>
-    <script src="../Objects/planet.js"></script>
+    <script src="../Objects/planet_texture_specular.js"></script>
+    <script src="../Objects/planet_texture_emission.js"></script>
     <script src="../Objects/background_space.js"></script>
     <script src="../Objects/lamp_texture.js"></script>
 
@@ -406,6 +411,7 @@
             material : {
                 diffuse : gl.getUniformLocation(program, 'material.diffuse'),
                 specular : gl.getUniformLocation(program, 'material.specular'),
+                emission : gl.getUniformLocation(program, 'material.emission'),
                 shininess : gl.getUniformLocation(program, 'material.shininess'),
             },
             background : {
@@ -418,14 +424,16 @@
         var texture = {};
         var img0 = new Image(); img0.onload=function() { texture.color=loadTexture(img0); }; img0.src=planet_map;
         var img1 = new Image(); img1.onload=function() { texture.specular=loadTexture(img1); }; img1.src=planet_map_specular;
-        var img2 = new Image(); img2.onload=function() { texture.background=loadTexture(img2); }; img2.src=background_space;
-        var img3 = new Image(); img3.onload=function() { texture.lamp=loadTexture(img3); }; img3.src=lamp_texture;
+        var img2 = new Image(); img2.onload=function() { texture.emission=loadTexture(img2); }; img2.src=planet_map_emission;
+        var img3 = new Image(); img3.onload=function() { texture.background=loadTexture(img3); }; img3.src=background_space;
+        var img4 = new Image(); img4.onload=function() { texture.lamp=loadTexture(img4); }; img4.src=lamp_texture;
 
         // Send Texture Data
         gl.uniform1i(buffer_location.material.diffuse, 0); //tell which index of texture to use
         gl.uniform1i(buffer_location.material.specular, 1);
-        gl.uniform1i(buffer_location.background.texture, 2);
-        gl.uniform1i(buffer_location.light.texture, 3);
+        gl.uniform1i(buffer_location.material.emission, 2);
+        gl.uniform1i(buffer_location.background.texture, 3);
+        gl.uniform1i(buffer_location.light.texture, 4);
 
     </script>
 
@@ -444,14 +452,16 @@
             normal : mat4.create(),
             transformCamera : mat4.create()
         }
-        let eyepos = [0,0,15];
+
+        let eyepos = [0,0,7];
 
         let camera_pos = {
             x : 0,
             y : 0,
             z : 0
         }
-        
+
+
         // ==========================
         // = INITIAL TRANFORMATIONS =
         // ==========================
@@ -472,9 +482,11 @@
         };
         objects.roket.elevation = {
             elevating : true,
+            slowing : true,
             speed : 0.005,
             min : 0.0,
-            max : 2.0,
+            mid : 0.3,
+            max : 1.5,
             x : 0,
             y : 0,
             z : 0
@@ -507,9 +519,9 @@
         rubbles = objects.rubbles;
         background = objects.background;
         lamp = objects.lamp;
-        
+
         function animate()
-		{
+        {
             // Use Z-Buffer
             gl.enable(gl.DEPTH_TEST);
 
@@ -518,9 +530,10 @@
 
 
             let aspectRatio = window.innerWidth/window.innerHeight;
+
             // Projection * Lookat = Camera
             mat4.lookAt(matrix.lookAt, eyepos, [0,0,0], [0,1,0]);
-            mat4.perspective(matrix.proyeksi, Math.PI*30/180, aspectRatio, 0.001, 3000000);
+            mat4.perspective(matrix.proyeksi, Math.PI*30/180, aspectRatio, 1, 3000);
             
             mat4.identity(matrix.camera);
             mat4.multiply(matrix.camera, matrix.lookAt, matrix.camera);
@@ -528,7 +541,7 @@
             
 
             // Send Eye Pos
-		    gl.uniform3fv(buffer_location.eye.pos, eyepos);
+            gl.uniform3fv(buffer_location.eye.pos, eyepos);
 
             // Send Lamp Configs
             gl.uniform3fv(buffer_location.light.pos, lamp.attributes.pos);
@@ -537,12 +550,12 @@
             gl.uniform3fv(buffer_location.light.diffuse, lamp.attributes.diffuse);
             gl.uniform3fv(buffer_location.light.specular, lamp.attributes.specular);
             mat4.identity(lamp.transformation);
-            mat4.translate(lamp.transformation, lamp.transformation, [camera_pos.x, camera_pos.y, camera_pos.z]);
+            // mat4.translate(lamp.transformation, lamp.transformation, [camera_pos.x, camera_pos.y, camera_pos.z]);
             mat4.translate(lamp.transformation, lamp.transformation, [lamp.attributes.pos[0], lamp.attributes.pos[1], lamp.attributes.pos[2]]);
             mat4.scale(lamp.transformation, lamp.transformation, [0.1, 0.1, 0.1]);
 
             // Material Shininess
-            gl.uniform1f(buffer_location.material.shininess, 4.0);
+            gl.uniform1f(buffer_location.material.shininess, 8.0);
 
             
             // ====================
@@ -550,14 +563,12 @@
             // ====================
             // Planet
             mat4.identity(planet.transformation);
-            mat4.translate(planet.transformation, planet.transformation, [camera_pos.x, camera_pos.y, camera_pos.z]);
             mat4.rotateX(planet.transformation, planet.transformation, Math.PI*planet.rotation.x/180.0);
             mat4.rotateY(planet.transformation, planet.transformation, Math.PI*planet.rotation.y/180.0);
             mat4.rotateZ(planet.transformation, planet.transformation, Math.PI*planet.rotation.z/180.0);
             
             // Rocket
             mat4.identity(roket.transformation);
-            mat4.translate(roket.transformation, roket.transformation, [camera_pos.x, camera_pos.y, camera_pos.z]);
             mat4.rotateX(roket.transformation, roket.transformation, Math.PI*roket.rotation.x/180.0);
             mat4.rotateY(roket.transformation, roket.transformation, Math.PI*roket.rotation.y/180.0);
             mat4.rotateZ(roket.transformation, roket.transformation, Math.PI*roket.rotation.z/180.0);
@@ -565,14 +576,12 @@
             
             // Rubbles
             mat4.identity(rubbles.transformation);
-            mat4.translate(rubbles.transformation, rubbles.transformation, [camera_pos.x, camera_pos.y, camera_pos.z]);
             mat4.rotateX(rubbles.transformation, rubbles.transformation, Math.PI*rubbles.revolution.x/180.0);
             mat4.rotateY(rubbles.transformation, rubbles.transformation, Math.PI*rubbles.revolution.y/180.0);
             mat4.rotateZ(rubbles.transformation, rubbles.transformation, Math.PI*rubbles.revolution.z/180.0);
 
             // Background
             mat4.identity(background.transformation);
-            mat4.translate(background.transformation, background.transformation, [camera_pos.x, camera_pos.y, camera_pos.z]);
             mat4.scale(background.transformation, background.transformation, [2, 2, 2]);
             
 
@@ -618,8 +627,10 @@
                 gl.activeTexture(gl.TEXTURE1);
                 gl.bindTexture(gl.TEXTURE_2D, texture.specular);
                 gl.activeTexture(gl.TEXTURE2);
-                gl.bindTexture(gl.TEXTURE_2D, texture.background);
+                gl.bindTexture(gl.TEXTURE_2D, texture.emission);
                 gl.activeTexture(gl.TEXTURE3);
+                gl.bindTexture(gl.TEXTURE_2D, texture.background);
+                gl.activeTexture(gl.TEXTURE4);
                 gl.bindTexture(gl.TEXTURE_2D, texture.lamp);
 
                 // Draw Geometry
@@ -639,32 +650,34 @@
             else if(lamp.attributes.pos[1] <= -4.0) lamp.attributes.up = true;
 
 
-            // Rubble Revolution
+            // Rubbles Revolution
             rubbles.revolution.z += 0.5;
             rubbles.revolution.z %= 360;
             
 
             // Rocket Elevation
+            d = roket.elevation.speed
+            if (roket.elevation.slowing) d /= 2;
+
             if (roket.elevation.elevating){
-                roket.elevation.x += roket.elevation.speed;
-
+                roket.elevation.x += d;
                 roket.elevation.y = 0;
-
-                roket.elevation.z += roket.elevation.speed;
+                roket.elevation.z += d;
             }else{
-                roket.elevation.x -= roket.elevation.speed;
-
+                roket.elevation.x -= d;
                 roket.elevation.y = 0;
-
-                roket.elevation.z -= roket.elevation.speed;
+                roket.elevation.z -= d;
             }
 
-            if (roket.elevation.x >= roket.elevation.max){
+            if (roket.elevation.x >= roket.elevation.max)
                 roket.elevation.elevating = false;
-            }
-            if (roket.elevation.x <= roket.elevation.min){
+            if (roket.elevation.x <= roket.elevation.min)
                 roket.elevation.elevating = true;
-            }
+
+            if (roket.elevation.x <= roket.elevation.mid)
+                roket.elevation.slowing = true;
+            else
+                roket.elevation.slowing = false;
             
             
             requestAnimationFrame(animate, layar);

@@ -13,103 +13,695 @@
             transform: translate(-50%, -50%);
         }
     </style>
-    <title>Proyek Grafkom</title>
+    <title>Background + Lamp</title>
 </head>
-<body style="margin: 0; padding: 0;">
+<body>
     <canvas id="layar" width="600" height="600" class="canvas"></canvas>
 
     <script>
         let vs_text = `#version 300 es
         precision mediump float;
-        in vec4 koordinat;
+
+        in vec4 obj_vertices;
+        in vec4 obj_normal;
+        in vec2 texture_vertices;
+        
+        uniform mat4 matrix_transform_camera;  // matrix transformasi & cahaya
+        uniform mat4 matrix_normal; // matrix benda rotasinya saja utk normal
+        uniform mat4 matrix_cahaya; // matrik Cahaya benda
+
+        out vec4 gradasi_vertex;
+        out vec4 gradasi_normal;
+
+        out vec2 texture_vertices_interp;
         void main(){
-            gl_Position = koordinat; 
+            gl_Position = matrix_transform_camera * obj_vertices;	
+
+            gradasi_vertex = matrix_cahaya * obj_vertices;
+            gradasi_normal = matrix_normal * obj_normal;
+            // gradasi_normal = obj_normal;
+
+            texture_vertices_interp = texture_vertices;
         }
         `;
         
         // fragment shader GLSL (GL Shading Language)
         let fs_text = `#version 300 es
         precision mediump float;
-        uniform vec4 warna_kiriman;
+
+        struct Material {
+            sampler2D diffuse;
+            sampler2D specular;
+            float shininess;
+        };
+
+        struct Light {
+            vec3 position;
+            vec3 color;
+
+            vec3 ambient;
+            vec3 diffuse;
+            vec3 specular;
+            sampler2D texture;
+        };
+
+        struct Background {
+            sampler2D texture;
+            float flag;
+        };
+
+        in vec4 gradasi_vertex;
+        in vec4 gradasi_normal;
+        in vec2 texture_vertices_interp;
+        
+        uniform vec3 eye_pos;
+        uniform Material material;
+        uniform Light light;
+        uniform Background background;
+        
         out vec4 warna;
         void main(){
-            warna = warna_kiriman;
+            // ambient
+            vec3 ambient = light.ambient * light.color * texture(material.diffuse, texture_vertices_interp).rgb;
+
+            // diffuse
+            vec3 normal_dir = normalize(gradasi_normal.xyz);
+            vec3 light_dir = normalize(light.position - gradasi_vertex.xyz);
+            float dif = clamp(dot(normal_dir, light_dir), 0.0, 1.0);
+
+            vec3 diffuse = light.diffuse * light.color * dif * texture(material.diffuse, texture_vertices_interp).rgb;
+
+            
+            // specular
+            vec3 view_dir = normalize(eye_pos - gradasi_vertex.xyz);
+            vec3 reflect_dir = reflect(-light_dir, normal_dir.xyz);
+            float spec = pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
+
+            vec3 specular = light.specular * light.color * spec * texture(material.specular, texture_vertices_interp).rgb;
+            
+            if (background.flag == 1.0)
+                warna = vec4(texture(light.texture, texture_vertices_interp).rgb, 1.0);
+            else if (background.flag == 0.5)
+                warna = vec4(texture(background.texture, texture_vertices_interp).rgb, 1.0);
+            else
+                warna = vec4((ambient + diffuse + specular), 1.0);
         }
         `;
 
     </script>
 
+    <script src='gl-matrix.js'></script>
+    <script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
+    <!-- Rocket -->
+    <script src="./Objects/Rocket/rocket_V.js"></script>
+    <script src="./Objects/Rocket/rocket_Vn.js"></script>
+    <script src="./Objects/Rocket/rocket_Vt.js"></script>
+    <script src="./Objects/Rocket/rocket_F.js"></script>
+
+    <!-- Planet -->
+    <script src="./Objects/Planet/planet_V.js"></script>
+    <script src="./Objects/Planet/planet_Vn.js"></script>
+    <script src="./Objects/Planet/planet_Vt.js"></script>
+    <script src="./Objects/Planet/planet_F.js"></script>
+
+    <!-- Rubbles -->
+    <script src="./Objects/Rubbles/rubbles_V.js"></script>
+    <script src="./Objects/Rubbles/rubbles_Vn.js"></script>
+    <script src="./Objects/Rubbles/rubbles_Vt.js"></script>
+    <script src="./Objects/Rubbles/rubbles_F.js"></script>
+
+    <!-- Background -->
+    <script src="./Objects/Background_Cube/background_cube_V.js"></script>
+    <script src="./Objects/Background_Cube/background_cube_Vn.js"></script>
+    <script src="./Objects/Background_Cube/background_cube_Vt.js"></script>
+    <script src="./Objects/Background_Cube/background_cube_F.js"></script>
+
+    <!-- Lamp -->
+    <script src="./Objects/Lamp/lamp_V.js"></script>
+    <script src="./Objects/Lamp/lamp_Vn.js"></script>
+    <script src="./Objects/Lamp/lamp_Vt.js"></script>
+    <script src="./Objects/Lamp/lamp_F.js"></script>
+
+    <!-- Texture -->
+    <script src="./Objects/planet_texture.js"></script>
+    <script src="./Objects/planet_texture_specular_2.js"></script>
+    <script src="./Objects/background_space.js"></script>
+    <script src="./Objects/lamp_texture.js"></script>
 
     <script>
+        // ======================
+        // ===   Functions    ===
+        // ======================
+        function loadVektor(n_segitiga, v_obj, f_obj){
+            v_obj_buffer = Array();
+            dv = f_obj[0];
+            for(i = 0; i < n_segitiga; i++){
+                v_obj_buffer[i * 9 + 0] = v_obj[3 * (f_obj[i * 9 + 0] - dv) + 0];
+                v_obj_buffer[i * 9 + 1] = v_obj[3 * (f_obj[i * 9 + 0] - dv) + 1];
+                v_obj_buffer[i * 9 + 2] = v_obj[3 * (f_obj[i * 9 + 0] - dv) + 2];
+                
+                v_obj_buffer[i * 9 + 3] = v_obj[3 * (f_obj[i * 9 + 3] - dv) + 0];
+                v_obj_buffer[i * 9 + 4] = v_obj[3 * (f_obj[i * 9 + 3] - dv) + 1];
+                v_obj_buffer[i * 9 + 5] = v_obj[3 * (f_obj[i * 9 + 3] - dv) + 2];
+                
+                v_obj_buffer[i * 9 + 6] = v_obj[3 * (f_obj[i * 9 + 6] - dv) + 0];
+                v_obj_buffer[i * 9 + 7] = v_obj[3 * (f_obj[i * 9 + 6] - dv) + 1];
+                v_obj_buffer[i * 9 + 8] = v_obj[3 * (f_obj[i * 9 + 6] - dv) + 2];
+            }
+            v_obj_buffer = new Float32Array(v_obj_buffer);
+            return v_obj_buffer;
+        }
+        
+        function loadVektorTexture(n_segitiga, vt_obj, f_obj){
+            vt_obj_buffer = Array();
+            dvt = f_obj[1];
+            for(i = 0; i < n_segitiga; i++)
+            {
+                vt_obj_buffer[i * 6 + 0] = vt_obj[2 * (f_obj[i * 9 + 1] - dvt) + 0];
+                vt_obj_buffer[i * 6 + 1] = vt_obj[2 * (f_obj[i * 9 + 1] - dvt) + 1];
+                
+                vt_obj_buffer[i * 6 + 2] = vt_obj[2 * (f_obj[i * 9 + 4] - dvt) + 0];
+                vt_obj_buffer[i * 6 + 3] = vt_obj[2 * (f_obj[i * 9 + 4] - dvt) + 1];
+                
+                vt_obj_buffer[i * 6 + 4] = vt_obj[2 * (f_obj[i * 9 + 7] - dvt) + 0];
+                vt_obj_buffer[i * 6 + 5] = vt_obj[2 * (f_obj[i * 9 + 7] - dvt) + 1];
+            }
+            vt_obj_buffer = new Float32Array(vt_obj_buffer);
+            return vt_obj_buffer;
+        }
+        
+        function loadVektorNormal(n_segitiga, n_obj, f_obj){
+            n_obj_buffer = Array();
+            dn = f_obj[2];
+            for(i = 0; i < n_segitiga; i++)
+            {
+                n_obj_buffer[i * 9 + 0] = n_obj[3 * (f_obj[i * 9 + 2] - dn) + 0];
+                n_obj_buffer[i * 9 + 1] = n_obj[3 * (f_obj[i * 9 + 2] - dn) + 1];
+                n_obj_buffer[i * 9 + 2] = n_obj[3 * (f_obj[i * 9 + 2] - dn) + 2];
+                
+                n_obj_buffer[i * 9 + 3] = n_obj[3 * (f_obj[i * 9 + 5] - dn) + 0];
+                n_obj_buffer[i * 9 + 4] = n_obj[3 * (f_obj[i * 9 + 5] - dn) + 1];
+                n_obj_buffer[i * 9 + 5] = n_obj[3 * (f_obj[i * 9 + 5] - dn) + 2];
+
+                n_obj_buffer[i * 9 + 6] = n_obj[3 * (f_obj[i * 9 + 8] - dn) + 0];
+                n_obj_buffer[i * 9 + 7] = n_obj[3 * (f_obj[i * 9 + 8] - dn) + 1];
+                n_obj_buffer[i * 9 + 8] = n_obj[3 * (f_obj[i * 9 + 8] - dn) + 2];
+            }
+            n_obj_buffer = new Float32Array(n_obj_buffer);
+            return n_obj_buffer;
+        }
+        
+        function createShader(gl, type, source){
+            var shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+            if (success) {
+                return shader;
+            }
+
+            console.log(gl.getShaderInfoLog(shader));
+            gl.deleteShader(shader);
+        }
+
+        function createProgram(gl, vs, fs){
+            var program = gl.createProgram();
+            gl.attachShader(program, vs);
+            gl.attachShader(program, fs);
+            gl.linkProgram(program);
+            gl.useProgram(program); 
+            var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+            if (success) {
+                return program;
+            }
+        }
+        
+        function resetCanvas(){
+            webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+
+            // Convert from clip space to pixels
+            gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+            // Clear Screen
+            gl.clearColor(0.5, 0.5, 0.5, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        }
+
+        function createAttributeBuffer(vertices){
+            let Buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, Buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+            return Buffer;
+        }
+
+        function loadBufferData(AttribOnShader, nPointer, Buffer){
+            gl.bindBuffer(gl.ARRAY_BUFFER, Buffer); // bind buffer to active ARRAY_BUFFER
+            loc = gl.getAttribLocation(program, AttribOnShader);
+            gl.vertexAttribPointer(loc, nPointer, gl.FLOAT, false, 0, 0); // specify specs to send data
+            gl.enableVertexAttribArray(loc); // send the actual data
+        }
+
+        function loadTexture(img){
+            gltex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, gltex);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+            return gltex;
+        }
+
+    </script>
+
+    <script>
+        // ======================
+        // ===     Models     ===
+        // ======================
+        let objects = {
+            planet : {},
+            roket : {},
+            rubbles : {},
+            background : {},
+            lamp : {}
+        }
+        objects.planet.data = {
+            n_segitiga : f_planet.length/(9),
+            v : function(){
+                return loadVektor(this.n_segitiga, v_planet, f_planet);
+            },
+            vt : function(){
+                return loadVektorTexture(this.n_segitiga, vt_planet, f_planet);
+            },
+            vn : function(){
+                return loadVektorNormal(this.n_segitiga, vn_planet, f_planet);
+            }
+        }
+        objects.roket.data = {
+            n_segitiga : f_roket.length/(9),
+            v : function(){
+                return loadVektor(this.n_segitiga, v_roket, f_roket);
+            },
+            vt : function(){
+                return loadVektorTexture(this.n_segitiga, vt_roket, f_roket);
+            },
+            vn : function(){
+                return loadVektorNormal(this.n_segitiga, vn_roket, f_roket);
+            }
+        }
+        objects.rubbles.data = {
+            n_segitiga : f_rubble.length/(9),
+            v : function(){
+                return loadVektor(this.n_segitiga, v_rubble, f_rubble);
+            },
+            vt : function(){
+                return loadVektorTexture(this.n_segitiga, vt_rubble, f_rubble);
+            },
+            vn : function(){
+                return loadVektorNormal(this.n_segitiga, vn_planet, f_rubble);
+            }
+        }
+        objects.background.data = {
+            n_segitiga : f_background_sphere.length/(9),
+            v : function(){
+                return loadVektor(this.n_segitiga, v_background_sphere, f_background_sphere);
+            },
+            vt : function(){
+                return loadVektorTexture(this.n_segitiga, vt_background_sphere, f_background_sphere);
+            },
+            vn : function(){
+                return loadVektorNormal(this.n_segitiga, vn_background_sphere, f_background_sphere);
+            }
+        }
+        objects.lamp.data = {
+            n_segitiga : f_lamp.length/(9),
+            v : function(){
+                return loadVektor(this.n_segitiga, v_lamp, f_lamp);
+            },
+            vt : function(){
+                return loadVektorTexture(this.n_segitiga, vt_lamp, f_lamp);
+            },
+            vn : function(){
+                return loadVektorNormal(this.n_segitiga, vn_lamp, f_lamp);
+            }
+        }
+    </script>
+
+    <script>
+        /** @type {HTMLCanvasElement} */
+
+        // ======================
+        // === Initialization ===
+        // ======================
+        // Get WebGL Context
         let layar = document.getElementById("layar");
-        let gl = layar.getContext('webgl2');
-
-        // Untuk Vertex Shader
-        let vs = gl.createShader(gl.VERTEX_SHADER); 
-        gl.shaderSource(vs, vs_text); 
-        gl.compileShader(vs); 
-
-        // Untuk Fragment Shader
-        let fs = gl.createShader(gl.FRAGMENT_SHADER); 
-        gl.shaderSource(fs, fs_text);
-        gl.compileShader(fs); 
-
-        // Proses link jadi exe
-        let prog = gl.createProgram(); // buat folder kosong (?)
-        gl.attachShader(prog, vs); // copy obj ke folder
-        gl.attachShader(prog, fs); // copy obj ke folder
-        gl.linkProgram(prog); // di-link menjadi satu exe
-        gl.useProgram(prog); // pilih shader yang mau dijalankan
-
-
-        // == Model 2D ==
-        // koordinat vertex dalam x,y
-        // diberi Float32Array agar bisa displit datanya (?)
-        let segitiga = new Float32Array([0.0, 0.0, 0.5, 0.7, 0.7, 0.0]);
-        let kotak = new Float32Array([  -0.5, -0.5,
-                                        -0.8, -0.5,
-                                        -0.8, -0.8,
-                                        -0.5, -0.8
-                                    ]);
-
-        let buffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffer); // memilih VBO yang hendak diotak atik
-        // jangan lupa tambahkan inputan in di vs_text
-
-        // Cari lubang pipa ke shader
-        let koordinat_loc = gl.getAttribLocation(prog, 'koordinat'); 
-        gl.vertexAttribPointer(koordinat_loc, // bentuk dan lebar pipa
-                                2, // dikirim per berapa
-                                gl.FLOAT, // tipe data
-                                false, //normalisasi
-                                0, //start
-                                0); // stride/loncatan
-
-        // Membuka keran pipa
-        gl.enableVertexAttribArray(koordinat_loc);
+        let gl = layar.getContext('webgl2'); 
         
+        // Create Vertex & Fragment Shader
+        var vs = createShader(gl, gl.VERTEX_SHADER, vs_text);
+        var fs = createShader(gl, gl.FRAGMENT_SHADER, fs_text);
 
-        // Membuat lubang untukw warna
-        let warna_loc = gl.getUniformLocation(prog, 'warna_kiriman'); 
+        // Create Program
+        var program = createProgram(gl, vs, fs);
 
+        // Clear Canvas
+        resetCanvas();
+    </script>
 
-
-
-        /// == Penggambaran ==
-        gl.clearColor(0.3, 0.3, 0.3, 1.0); // rgba
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
-        gl.uniform4f(warna_loc, 1.0, 0.0, 0.0, 1,0); // warna
-        gl.bufferData(gl.ARRAY_BUFFER, segitiga, gl.STATIC_DRAW);
-        gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-        gl.uniform4f(warna_loc, 0.0, 1.0, 0.0, 1,0); // warna
-        gl.bufferData(gl.ARRAY_BUFFER, kotak, gl.STATIC_DRAW);
-        gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+    <script>
+        // ======================
+        // ===   Buffering    ===
+        // ======================
+        // Create Buffer
+        Object.keys(objects).forEach(function(key) {
+            obj = objects[key];
+            
+            obj.buffer = {
+                v : createAttributeBuffer(obj.data.v()),
+                vn : createAttributeBuffer(obj.data.vn()),
+                vt : createAttributeBuffer(obj.data.vt()),
+            }
+        });
         
+        // Store Buffer Location at Shaders
+        let buffer_location = {
+            texture_data : gl.getUniformLocation(program, 'texture_data'),
+            matrixTransformCamera : gl.getUniformLocation(program, 'matrix_transform_camera'),
+            matrixNormal : gl.getUniformLocation(program, 'matrix_normal'),
+            matrixCahaya : gl.getUniformLocation(program, 'matrix_cahaya'),
+            light : {
+                pos : gl.getUniformLocation(program, 'light.position'),
+                color : gl.getUniformLocation(program, 'light.color'),
+                ambient : gl.getUniformLocation(program, 'light.ambient'),
+                diffuse : gl.getUniformLocation(program, 'light.diffuse'),
+                specular : gl.getUniformLocation(program, 'light.specular'),
+                texture : gl.getUniformLocation(program, 'light.texture')
+            },
+            eye : {
+                pos : gl.getUniformLocation(program, 'eye_pos')
+            },
+            material : {
+                diffuse : gl.getUniformLocation(program, 'material.diffuse'),
+                specular : gl.getUniformLocation(program, 'material.specular'),
+                shininess : gl.getUniformLocation(program, 'material.shininess'),
+            },
+            background : {
+                flag : gl.getUniformLocation(program, 'background.flag'),
+                texture : gl.getUniformLocation(program, 'background.texture')
+            }
+        }
+
+        // Load Texture
+        var texture = {};
+        var img0 = new Image(); img0.onload=function() { texture.color=loadTexture(img0); }; img0.src=planet_map;
+        var img1 = new Image(); img1.onload=function() { texture.specular=loadTexture(img1); }; img1.src=planet_map_specular;
+        var img2 = new Image(); img2.onload=function() { texture.background=loadTexture(img2); }; img2.src=background_space;
+        var img3 = new Image(); img3.onload=function() { texture.lamp=loadTexture(img3); }; img3.src=lamp_texture;
+
+        // Send Texture Data
+        gl.uniform1i(buffer_location.material.diffuse, 0); //tell which index of texture to use
+        gl.uniform1i(buffer_location.material.specular, 1);
+        gl.uniform1i(buffer_location.background.texture, 2);
+        gl.uniform1i(buffer_location.light.texture, 3);
+
+    </script>
+
+    <script>
+        // ======================
+        // ===    Animate     ===
+        // ======================
+
+        // Transformation Matrix
+        const {mat4} = glMatrix;
+        let matrix = {
+            proyeksi : mat4.create(),
+            lookAt : mat4.create(),
+            camera : mat4.create(),
+            transform : mat4.create(),
+            normal : mat4.create(),
+            transformCamera : mat4.create()
+        }
+        let eyepos = [0,0,15];
+
+        let camera_pos = {
+            x : 0,
+            y : 0,
+            z : 0
+        }
+        
+        // ==========================
+        // = INITIAL TRANFORMATIONS =
+        // ==========================
+        // Planet
+        objects.planet.transformation = mat4.create();
+        objects.planet.rotation = {
+            x : -90,
+            y : 0,
+            z : 0
+        };
+
+        // Roket
+        objects.roket.transformation = mat4.create();
+        objects.roket.rotation = {
+            x : -90,
+            y : 0,
+            z : 0
+        };
+        objects.roket.elevation = {
+            elevating : true,
+            speed : 0.005,
+            min : 0.0,
+            max : 2.0,
+            x : 0,
+            y : 0,
+            z : 0
+        }
+
+        // Rubbles
+        objects.rubbles.transformation = mat4.create();
+        objects.rubbles.revolution = {
+            x : -90,
+            y : 0,
+            z : 90
+        }
+
+        // Background
+        objects.background.transformation = mat4.create();
+
+        // Lamp
+        objects.lamp.transformation = mat4.create();
+        objects.lamp.attributes = {
+            pos : [0,0,1.5],
+            color : [1.0,1.0,1.0],
+            ambient : [0.2, 0.2, 0.2],
+            diffuse : [0.5, 0.5, 0.5],
+            specular : [1.0, 1.0, 1.0],
+            up : false
+        }
+
+        planet = objects.planet;
+        roket = objects.roket;
+        rubbles = objects.rubbles;
+        background = objects.background;
+        lamp = objects.lamp;
+        
+        function animate()
+		{
+            // Use Z-Buffer
+            gl.enable(gl.DEPTH_TEST);
+
+            // Clear Screen
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 
 
+            // Projection * Lookat = Camera
+            mat4.lookAt(matrix.lookAt, eyepos, [0,0,0], [0,1,0]);
+            mat4.perspective(matrix.proyeksi, Math.PI*30/180, 1, 0.001, 3000000);
+            
+            mat4.identity(matrix.camera);
+            mat4.multiply(matrix.camera, matrix.lookAt, matrix.camera);
+            mat4.multiply(matrix.camera, matrix.proyeksi, matrix.camera);
+            
+
+            // Send Eye Pos
+		    gl.uniform3fv(buffer_location.eye.pos, eyepos);
+
+            // Send Lamp Configs
+            gl.uniform3fv(buffer_location.light.pos, lamp.attributes.pos);
+            gl.uniform3fv(buffer_location.light.color, lamp.attributes.color);
+            gl.uniform3fv(buffer_location.light.ambient, lamp.attributes.ambient);
+            gl.uniform3fv(buffer_location.light.diffuse, lamp.attributes.diffuse);
+            gl.uniform3fv(buffer_location.light.specular, lamp.attributes.specular);
+            mat4.identity(lamp.transformation);
+            mat4.translate(lamp.transformation, lamp.transformation, [camera_pos.x, camera_pos.y, camera_pos.z]);
+            mat4.translate(lamp.transformation, lamp.transformation, [lamp.attributes.pos[0], lamp.attributes.pos[1], lamp.attributes.pos[2]]);
+            mat4.scale(lamp.transformation, lamp.transformation, [0.1, 0.1, 0.1]);
+
+            // Material Shininess
+            gl.uniform1f(buffer_location.material.shininess, 4.0);
+
+            
+            // ====================
+            // == Transformation ==
+            // ====================
+            // Planet
+            mat4.identity(planet.transformation);
+            mat4.translate(planet.transformation, planet.transformation, [camera_pos.x, camera_pos.y, camera_pos.z]);
+            mat4.rotateX(planet.transformation, planet.transformation, Math.PI*planet.rotation.x/180.0);
+            mat4.rotateY(planet.transformation, planet.transformation, Math.PI*planet.rotation.y/180.0);
+            mat4.rotateZ(planet.transformation, planet.transformation, Math.PI*planet.rotation.z/180.0);
+            
+            // Rocket
+            mat4.identity(roket.transformation);
+            mat4.translate(roket.transformation, roket.transformation, [camera_pos.x, camera_pos.y, camera_pos.z]);
+            mat4.rotateX(roket.transformation, roket.transformation, Math.PI*roket.rotation.x/180.0);
+            mat4.rotateY(roket.transformation, roket.transformation, Math.PI*roket.rotation.y/180.0);
+            mat4.rotateZ(roket.transformation, roket.transformation, Math.PI*roket.rotation.z/180.0);
+            mat4.translate(roket.transformation, roket.transformation, [roket.elevation.x, roket.elevation.y, roket.elevation.z])
+            
+            // Rubbles
+            mat4.identity(rubbles.transformation);
+            mat4.translate(rubbles.transformation, rubbles.transformation, [camera_pos.x, camera_pos.y, camera_pos.z]);
+            mat4.rotateX(rubbles.transformation, rubbles.transformation, Math.PI*rubbles.revolution.x/180.0);
+            mat4.rotateY(rubbles.transformation, rubbles.transformation, Math.PI*rubbles.revolution.y/180.0);
+            mat4.rotateZ(rubbles.transformation, rubbles.transformation, Math.PI*rubbles.revolution.z/180.0);
+
+            // Background
+            mat4.identity(background.transformation);
+            mat4.translate(background.transformation, background.transformation, [camera_pos.x, camera_pos.y, camera_pos.z]);
+            mat4.scale(background.transformation, background.transformation, [2, 2, 2]);
+            
+
+            // ====================
+            // ==   Rendering    ==
+            // ====================
+            Object.keys(objects).forEach(function(key) {
+                obj = objects[key];
+
+                // Send the matrix before Lighting
+                gl.uniformMatrix4fv(buffer_location.matrixCahaya, false, obj.transformation);
+
+                // invert matriks benda utk menetralisir efek transasli+scaling pd normal
+                // matriks invers ini, matnorm, ikut dikirim ke shader
+                mat4.invert(matrix.normal, obj.transformation);
+                mat4.transpose(matrix.normal, matrix.normal);
+                // Send Normal Matrix
+                gl.uniformMatrix4fv(buffer_location.matrixNormal, false, matrix.normal);		
+
+
+                // Calculate transform matrix with camera, then Send
+                mat4.mul(matrix.transformCamera, matrix.camera, obj.transformation);
+                gl.uniformMatrix4fv(buffer_location.matrixTransformCamera, false, matrix.transformCamera);
+                
+
+                // Load Buffer Data ke Shader
+                loadBufferData('obj_vertices', 3, obj.buffer.v);
+                loadBufferData('obj_normal', 3, obj.buffer.vn);
+                loadBufferData('texture_vertices', 2, obj.buffer.vt);
+
+                // Check Background or not
+                if (key == "lamp")
+                    gl.uniform1f(buffer_location.background.flag, 1.0);
+                else if (key == "background")
+                    gl.uniform1f(buffer_location.background.flag, 0.5);
+                else
+                    gl.uniform1f(buffer_location.background.flag, 0.0);
+                
+
+                // Set Active Texture
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, texture.color);
+                gl.activeTexture(gl.TEXTURE1);
+                gl.bindTexture(gl.TEXTURE_2D, texture.specular);
+                gl.activeTexture(gl.TEXTURE2);
+                gl.bindTexture(gl.TEXTURE_2D, texture.background);
+                gl.activeTexture(gl.TEXTURE3);
+                gl.bindTexture(gl.TEXTURE_2D, texture.lamp);
+
+                // Draw Geometry
+                gl.drawArrays(gl.TRIANGLES, 0, 3 * obj.data.n_segitiga);
+            });
+
+            
+
+            // ====================
+            // == Animation Code ==
+            // ====================
+            // Lamp Up Down
+            if(lamp.attributes.up) lamp.attributes.pos[1] += 0.05;
+            else lamp.attributes.pos[1] -= 0.05;
+
+            if (lamp.attributes.pos[1] >= 4.0) lamp.attributes.up = false; 
+            else if(lamp.attributes.pos[1] <= -4.0) lamp.attributes.up = true;
+
+
+            // Rubble Revolution
+            rubbles.revolution.z += 0.5;
+            rubbles.revolution.z %= 360;
+            
+
+            // Rocket Elevation
+            if (roket.elevation.elevating){
+                roket.elevation.x += roket.elevation.speed;
+
+                roket.elevation.y = 0;
+
+                roket.elevation.z += roket.elevation.speed;
+            }else{
+                roket.elevation.x -= roket.elevation.speed;
+
+                roket.elevation.y = 0;
+
+                roket.elevation.z -= roket.elevation.speed;
+            }
+
+            if (roket.elevation.x >= roket.elevation.max){
+                roket.elevation.elevating = false;
+            }
+            if (roket.elevation.x <= roket.elevation.min){
+                roket.elevation.elevating = true;
+            }
+            
+            
+            requestAnimationFrame(animate, layar);
+        }
+        animate();
+
+        // Print the Structure of Objects
+        // obj_structure = JSON.stringify(objects);
+        // console.log(obj_structure);
+    </script>
+
+    <script>
+        // ======================
+        // ===  Window Event  ===
+        // ======================
+
+        window.addEventListener('keydown', this.keyBoardButton, false);
+        function keyBoardButton(e) {
+            if (e.keyCode == 87){ //w key
+                camera_pos.z += 0.1;
+                camera_pos.x += 0.1;
+            }
+            if (e.keyCode == 65){ //a key
+                camera_pos.x += 0.5;
+            }
+            if (e.keyCode == 83){ //s key
+                camera_pos.z -= 0.1;
+                camera_pos.x -= 0.1;
+            }
+            if (e.keyCode == 68){ //d key
+                camera_pos.x -= 0.5;
+            }
+            if(e.keyCode == 81){ //q key
+                camera_pos.y += 0.5;
+            }
+            if(e.keyCode==69){ // e key
+                camera_pos.y -= 0.5;
+            }
+        }
     </script>
 </body>
 </html>

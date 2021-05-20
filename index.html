@@ -4,26 +4,54 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        html, body {
-            width:  100%;
-            height: 100%;
-            margin: 0;
-        }
-        .canvas{
-            margin: 0;
-            position: absolute; 
-            top: 50%; 
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 100%;
-            height : 100%;
-        }
-    </style>
+    <link rel="stylesheet" href="./Scripts/style.css">
     <title>Proyek Grafkom</title>
 </head>
 <body>
-    <canvas id="layar" class="canvas"></canvas>
+    <div class="container">
+        <canvas id="layar" class="canvas"></canvas>
+        <div id="overlay">
+          <div>Creators :</div>
+          <div>Lawrence Patrick - 219116837</div>
+          <div>Christopher Davin - 219116823</div>
+        </div>
+        <div id="overlay-hint" onclick="showHelp()">
+            <div>?</div>
+        </div>
+        <div id="overlay-help">
+            <div class="overlay-close" onclick="closeHelp()">X</div>
+            <div class="sect">
+                <div style="margin-bottom: 1em;">
+                    <img src="./Asset/mouse scroll.png">
+                </div>
+                <div>Zoom</div>
+                <div style="font-weight: normal;">Scroll Anywhere</div>
+            </div>
+            <div class="sect">
+                <div style="margin-bottom: 1em;">
+                    <img src="./Asset/orbit.png">
+                </div>
+                <div>Orbit</div>
+                <div style="font-weight: normal;">Left Click + Drag</div>
+            </div>
+            <div class="sect">
+                <div style="margin-bottom: 1em;">
+                    <img src="./Asset/pan.png">
+                </div>
+                <div>Pan</div>
+                <div style="font-weight: normal;">Right Click + Drag</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function showHelp(){
+            document.getElementById("overlay-help").style.visibility = 'visible';
+        }
+        function closeHelp(){
+            document.getElementById("overlay-help").style.visibility = 'hidden';
+        }
+        // closeHelp();
+    </script>
 
     <script src='gl-matrix.js'></script>
     <script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>

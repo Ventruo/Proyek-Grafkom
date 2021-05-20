@@ -16,8 +16,8 @@ Object.keys(objects).forEach(function(key) {
 let buffer_location = {
     texture_data : gl.getUniformLocation(program, 'texture_data'),
     matrixTransformCamera : gl.getUniformLocation(program, 'matrix_transform_camera'),
+    matrixTransform : gl.getUniformLocation(program, 'matrix_transform'),
     matrixNormal : gl.getUniformLocation(program, 'matrix_normal'),
-    matrixCahaya : gl.getUniformLocation(program, 'matrix_cahaya'),
     light : {
         pos : gl.getUniformLocation(program, 'light.position'),
         color : gl.getUniformLocation(program, 'light.color'),

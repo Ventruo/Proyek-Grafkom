@@ -9,7 +9,9 @@ let matrix = {
     transformCamera : mat4.create()
 }
 
-let eyepos = [0,0,7];
+let eyepos = [0, 0, 7];
+
+let center = [0, 0, 0];
 
 let camera_pos = {
     x : 0,
@@ -62,8 +64,8 @@ objects.background.transformation = mat4.create();
 // Lamp
 objects.lamp.transformation = mat4.create();
 objects.lamp.attributes = {
-    pos : [0,0,1.5],
-    color : [1.0,1.0,1.0],
+    pos : [0, 0, 1.5],
+    color : [1.0, 1.0, 1.0],
     ambient : [0.2, 0.2, 0.2],
     diffuse : [0.5, 0.5, 0.5],
     specular : [1.0, 1.0, 1.0],

@@ -19,7 +19,7 @@ function animate()
     let aspectRatio = window.innerWidth/window.innerHeight;
 
     // Projection * Lookat = Camera
-    mat4.lookAt(matrix.lookAt, eyepos, [0,0,0], [0,1,0]);
+    mat4.lookAt(matrix.lookAt, eyepos, center, [0,1,0]);
     mat4.perspective(matrix.proyeksi, Math.PI*30/180, aspectRatio, 1, 3000);
     
     mat4.identity(matrix.camera);
@@ -37,7 +37,6 @@ function animate()
     gl.uniform3fv(buffer_location.light.diffuse, lamp.attributes.diffuse);
     gl.uniform3fv(buffer_location.light.specular, lamp.attributes.specular);
     mat4.identity(lamp.transformation);
-    // mat4.translate(lamp.transformation, lamp.transformation, [camera_pos.x, camera_pos.y, camera_pos.z]);
     mat4.translate(lamp.transformation, lamp.transformation, [lamp.attributes.pos[0], lamp.attributes.pos[1], lamp.attributes.pos[2]]);
     mat4.scale(lamp.transformation, lamp.transformation, [0.1, 0.1, 0.1]);
 
@@ -79,13 +78,13 @@ function animate()
         obj = objects[key];
 
         // Send the matrix before Lighting
-        gl.uniformMatrix4fv(buffer_location.matrixCahaya, false, obj.transformation);
+        gl.uniformMatrix4fv(buffer_location.matrixTransform, false, obj.transformation);
 
+        // Send Normal Matrix
         // invert matriks benda utk menetralisir efek transasli+scaling pd normal
         // matriks invers ini, matnorm, ikut dikirim ke shader
         mat4.invert(matrix.normal, obj.transformation);
         mat4.transpose(matrix.normal, matrix.normal);
-        // Send Normal Matrix
         gl.uniformMatrix4fv(buffer_location.matrixNormal, false, matrix.normal);		
 
 

@@ -1,3 +1,4 @@
+// vertex shader
 let vs_text = `#version 300 es
     precision mediump float;
 
@@ -5,25 +6,23 @@ let vs_text = `#version 300 es
     in vec4 obj_normal;
     in vec2 texture_vertices;
     
-    uniform mat4 matrix_transform_camera;  // matrix transformasi & cahaya
+    uniform mat4 matrix_transform; // matrix transformaisi
     uniform mat4 matrix_normal; // matrix benda rotasinya saja utk normal
-    uniform mat4 matrix_cahaya; // matrik Cahaya benda
+    uniform mat4 matrix_transform_camera; // matrix transformasi & camera
 
-    out vec4 gradasi_vertex;
-    out vec4 gradasi_normal;
-
-    out vec2 texture_vertices_interp;
+    out vec4 i_vertex;
+    out vec4 i_normal;
+    out vec2 i_texture_vertices;
     void main(){
         gl_Position = matrix_transform_camera * obj_vertices;	
 
-        gradasi_vertex = matrix_cahaya * obj_vertices;
-        gradasi_normal = matrix_normal * obj_normal;
-        // gradasi_normal = obj_normal;
+        i_vertex = matrix_transform * obj_vertices;
+        i_normal = matrix_normal * obj_normal;
 
-        texture_vertices_interp = texture_vertices;
+        i_texture_vertices = texture_vertices;
     }`;
     
-// fragment shader GLSL (GL Shading Language)
+// fragment shader
 let fs_text = `#version 300 es
     precision mediump float;
 
@@ -49,9 +48,9 @@ let fs_text = `#version 300 es
         float flag;
     };
 
-    in vec4 gradasi_vertex;
-    in vec4 gradasi_normal;
-    in vec2 texture_vertices_interp;
+    in vec4 i_vertex;
+    in vec4 i_normal;
+    in vec2 i_texture_vertices;
 
     uniform vec3 eye_pos;
     uniform Material material;
@@ -61,30 +60,30 @@ let fs_text = `#version 300 es
     out vec4 warna;
     void main(){
         // ambient
-        vec3 ambient = light.ambient * light.color * texture(material.diffuse, texture_vertices_interp).rgb;
+        vec3 ambient = light.ambient * light.color * texture(material.diffuse, i_texture_vertices).rgb;
 
         // diffuse
-        vec3 normal_dir = normalize(gradasi_normal.xyz);
-        vec3 light_dir = normalize(light.position - gradasi_vertex.xyz);
+        vec3 normal_dir = normalize(i_normal.xyz);
+        vec3 light_dir = normalize(light.position - i_vertex.xyz);
         float dif = clamp(dot(normal_dir, light_dir), 0.0, 1.0);
 
-        vec3 diffuse = light.diffuse * light.color * dif * texture(material.diffuse, texture_vertices_interp).rgb;
+        vec3 diffuse = light.diffuse * light.color * dif * texture(material.diffuse, i_texture_vertices).rgb;
 
         
         // specular
-        vec3 view_dir = normalize(eye_pos - gradasi_vertex.xyz);
+        vec3 view_dir = normalize(eye_pos - i_vertex.xyz);
         vec3 reflect_dir = reflect(-light_dir, normal_dir);
         float spec = pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
 
-        vec3 specular = light.specular * light.color * spec * texture(material.specular, texture_vertices_interp).rgb;
+        vec3 specular = light.specular * light.color * spec * texture(material.specular, i_texture_vertices).rgb;
         
         // emission
-        vec3 emission = texture(material.emission, texture_vertices_interp).rgb;
+        vec3 emission = texture(material.emission, i_texture_vertices).rgb;
 
         if (background.flag == 1.0)
-            warna = vec4(texture(light.texture, texture_vertices_interp).rgb, 1.0);
+            warna = vec4(texture(light.texture, i_texture_vertices).rgb, 1.0);
         else if (background.flag == 0.5)
-            warna = vec4(texture(background.texture, texture_vertices_interp).rgb, 1.0);
+            warna = vec4(texture(background.texture, i_texture_vertices).rgb, 1.0);
         else
             warna = vec4((ambient + diffuse + specular + emission), 1.0);
     }`;

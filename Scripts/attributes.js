@@ -9,7 +9,7 @@ let matrix = {
     transformCamera : mat4.create()
 }
 
-let eyepos = [0, 0, 7];
+eyepos = [0,0,7];
 
 let center = [0, 0, 0];
 

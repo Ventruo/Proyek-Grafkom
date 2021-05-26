@@ -19,7 +19,7 @@ function animate()
     let aspectRatio = window.innerWidth/window.innerHeight;
 
     let camera = mat4.create();
-    mat4.translate(camera, camera, [camPosX, camPosY, zoom]);
+    mat4.translate(camera, camera, [0, 0, zoom]);
     let xRotMatrix = mat4.create();
     let yRotMatrix = mat4.create();
     mat4.rotateX(xRotMatrix, xRotMatrix, -xRotation);

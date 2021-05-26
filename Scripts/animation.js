@@ -107,26 +107,22 @@ function animate()
         loadBufferData('obj_normal', 3, obj.buffer.vn);
         loadBufferData('texture_vertices', 2, obj.buffer.vt);
 
-        // Check Background or not
-        if (key == "lamp")
-            gl.uniform1f(buffer_location.background.flag, 1.0);
-        else if (key == "background")
-            gl.uniform1f(buffer_location.background.flag, 0.5);
+        // Check Environment or not
+        if (key == "lamp" || key == "background")
+            gl.uniform1f(buffer_location.environment.flag, 1.0);
         else
-            gl.uniform1f(buffer_location.background.flag, 0.0);
+            gl.uniform1f(buffer_location.environment.flag, 0.0);
         
 
         // Set Active Texture
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, texture.color);
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, texture.specular);
-        gl.activeTexture(gl.TEXTURE2);
-        gl.bindTexture(gl.TEXTURE_2D, texture.emission);
-        gl.activeTexture(gl.TEXTURE3);
-        gl.bindTexture(gl.TEXTURE_2D, texture.background);
-        gl.activeTexture(gl.TEXTURE4);
-        gl.bindTexture(gl.TEXTURE_2D, texture.lamp);
+        gl.bindTexture(gl.TEXTURE_2D, obj.textures.color);
+        if (key == "planet" || key == "roket" || key == "rubbles"){
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, obj.textures.specular);
+            gl.activeTexture(gl.TEXTURE2);
+            gl.bindTexture(gl.TEXTURE_2D, obj.textures.emission);
+        }
 
         // Draw Geometry
         gl.drawArrays(gl.TRIANGLES, 0, 3 * obj.data.n_segitiga);

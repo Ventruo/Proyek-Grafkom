@@ -26,13 +26,6 @@ let vs_text = `#version 300 es
 let fs_text = `#version 300 es
     precision mediump float;
 
-    struct Material {
-        sampler2D diffuse;
-        sampler2D specular;
-        sampler2D emission;
-        float shininess;
-    };
-
     struct Light {
         vec3 position;
         vec3 color;
@@ -40,10 +33,16 @@ let fs_text = `#version 300 es
         vec3 ambient;
         vec3 diffuse;
         vec3 specular;
-        sampler2D texture;
     };
 
-    struct Background {
+    struct Material {
+        sampler2D diffuse;
+        sampler2D specular;
+        sampler2D emission;
+        float shininess;
+    };
+
+    struct Environment {
         sampler2D texture;
         float flag;
     };
@@ -55,35 +54,36 @@ let fs_text = `#version 300 es
     uniform vec3 eye_pos;
     uniform Material material;
     uniform Light light;
-    uniform Background background;
+    uniform Environment environment;
 
     out vec4 warna;
     void main(){
-        // ambient
-        vec3 ambient = light.ambient * light.color * texture(material.diffuse, i_texture_vertices).rgb;
-
-        // diffuse
-        vec3 normal_dir = normalize(i_normal.xyz);
-        vec3 light_dir = normalize(light.position - i_vertex.xyz);
-        float dif = clamp(dot(normal_dir, light_dir), 0.0, 1.0);
-
-        vec3 diffuse = light.diffuse * light.color * dif * texture(material.diffuse, i_texture_vertices).rgb;
-
-        
-        // specular
-        vec3 view_dir = normalize(eye_pos - i_vertex.xyz);
-        vec3 reflect_dir = reflect(-light_dir, normal_dir);
-        float spec = pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
-
-        vec3 specular = light.specular * light.color * spec * texture(material.specular, i_texture_vertices).rgb;
-        
-        // emission
-        vec3 emission = texture(material.emission, i_texture_vertices).rgb;
-
-        if (background.flag == 1.0)
-            warna = vec4(texture(light.texture, i_texture_vertices).rgb, 1.0);
-        else if (background.flag == 0.5)
-            warna = vec4(texture(background.texture, i_texture_vertices).rgb, 1.0);
+        if (environment.flag == 1.0){
+            warna = vec4(texture(environment.texture, i_texture_vertices).rgb, 1.0);
+        }
         else
+        {
+            // ambient
+            vec3 ambient = light.ambient * light.color * texture(material.diffuse, i_texture_vertices).rgb;
+    
+            // diffuse
+            vec3 normal_dir = normalize(i_normal.xyz);
+            vec3 light_dir = normalize(light.position - i_vertex.xyz);
+            float dif = clamp(dot(normal_dir, light_dir), 0.0, 1.0);
+    
+            vec3 diffuse = light.diffuse * light.color * dif * texture(material.diffuse, i_texture_vertices).rgb;
+    
+            
+            // specular
+            vec3 view_dir = normalize(eye_pos - i_vertex.xyz);
+            vec3 reflect_dir = reflect(-light_dir, normal_dir);
+            float spec = pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
+    
+            vec3 specular = light.specular * light.color * spec * texture(material.specular, i_texture_vertices).rgb;
+            
+            // emission
+            vec3 emission = texture(material.emission, i_texture_vertices).rgb;
+    
             warna = vec4((ambient + diffuse + specular + emission), 1.0);
+        }
     }`;

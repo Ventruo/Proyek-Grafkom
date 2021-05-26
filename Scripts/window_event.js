@@ -29,84 +29,40 @@ function keyBoardButton(e) {
 }
 
 
-//Event for scrolling
+//Event for Mouse Scroll
 var lastScrollTop = 0;
-window.addEventListener("scroll", function(){ // or window.addEventListener("scroll"....
-   var st = window.pageYOffset || document.documentElement.scrollTop; 
-   if (st > lastScrollTop){
-      eyepos[2]+=1.5;
-   } else {
-    eyepos[2]-=1.5;
+var zoom = 10;
+window.addEventListener("wheel", function(event){
+   if (event.deltaY > 0){ //scroll down -> zoom out
+        zoom += 0.5;
+   } else { // 
+        zoom -= 0.5;
    }
-   lastScrollTop = st // For Mobile or negative scrolling
 }, false);
 
 
-
-// var layarIsPressed = false;
-// var lastPressX, lastPressY;
-
-// window.onmousedown=function(e){
-//     //alert(e.pageX+" , "+e.pageY);
-//     layarIsPressed = true;
-//     lastPressX = e.pageX;
-//     lastPressY =e.pageY;
-// }
-
-// window.onmouseup = function(){
-//     layarIsPressed = false;
-// }
-
-// window.onmouseout = function(){
-//     layarIsPressed = false;
-// }
-
-// var angle_x = 0;
-// window.onmousemove = function(e){
-//     if (layarIsPressed) {
-//         // 0 - 1000
-//         let dx = e.pageX - lastPressX; 
-//         let dy = e.pageY - lastPressY;
-//         let d_angle_x = Math.PI*(dy/80)/180;
-//         angle_x += d_angle_x;
-//         console.log(angle_x);
-
-//         eyepos[1] = Math.sin(angle_x) * 7;
-//         eyepos[2] = Math.cos(angle_x) * 7;
-
-//         // if(e.pageX >= lastPressX){
-//         //     eyepos[0] -= (e.pageX - lastPressX)/100;
-//         //     //eyepos[0] -= Math.cos(e.pageX - lastPressX) - Math.sin(lastPressY - e.pageY);
-//         // }
-//         // else{
-//         //     eyepos[0] += (lastPressX - e.pageX)/100;
-//         // }
-
-//         // if(e.pageY>= lastPressY){
-//         //     eyepos[1] += (lastPressY - e.pageY)/100;
-//         // }
-//         // else{
-//         //     eyepos[1] -= (e.pageY - lastPressY)/100;
-//         // }
-        
-//         //xRotation = Math.min(xRotation, Math.PI / 2.5);
-//         //xRotation = Math.max(xRotation, 0.1);
-    
-//         lastPressX = e.pageX;
-//         lastPressY = e.pageY;
-//       }
-// }
-
+//Event for Mouse Drag
 var canvasIsPressed = false
-var xRotation = Math.PI / 20
+var leftMouseClicked = true;
+var rightMouseClicked = false;
+var xRotation = 0
 var yRotation = 0
 var lastPressX
 var lastPressY
 layar.onmousedown = function (e) {
-    //alert(e.pageX+", "+e.pageY);
+    
     canvasIsPressed = true
     lastPressX = e.pageX
     lastPressY = e.pageY
+
+    if (e.which == 1){
+        leftMouseClicked = true;
+        rightMouseClicked = false;
+    }
+    else if (e.which == 3){
+        leftMouseClicked = false;
+        rightMouseClicked = true;
+    }
 }
 layar.onmouseup = function () {
     canvasIsPressed = false
@@ -116,14 +72,23 @@ layar.onmouseout = function () {
 }
 layar.onmousemove = function (e) {
     if (canvasIsPressed) {
-
-        xRotation += (e.pageY - lastPressY) / 20
-        yRotation += (e.pageX - lastPressX) / 20
-
-        //xRotation = Math.min(xRotation, Math.PI / 2.5)
-        //xRotation = Math.max(xRotation, 0.1)
-
-        lastPressX = e.pageX
-        lastPressY = e.pageY
+        if (leftMouseClicked){
+            xRotation += (e.pageY - lastPressY) / 80
+            yRotation -= (e.pageX - lastPressX) / 80
+            
+            xRotation = Math.min(xRotation, 1.5);
+            xRotation = Math.max(xRotation, -1.5);
+    
+            lastPressX = e.pageX
+            lastPressY = e.pageY
+        }
+        
+        if (rightMouseClicked){
+            
+        }
     }
 }
+
+layar.addEventListener('contextmenu', e => {
+    e.preventDefault();
+});

@@ -19,18 +19,18 @@ function animate()
     let aspectRatio = window.innerWidth/window.innerHeight;
 
     let camera = mat4.create();
-    mat4.translate(camera, camera, [0,0,10]);
+    mat4.translate(camera, camera, [0, 0, zoom]);
     let xRotMatrix = mat4.create();
     let yRotMatrix = mat4.create();
     mat4.rotateX(xRotMatrix, xRotMatrix, -xRotation);
-    mat4.rotateX(yRotMatrix, yRotMatrix, yRotation);
+    mat4.rotateY(yRotMatrix, yRotMatrix, yRotation);
     mat4.multiply(camera, xRotMatrix, camera);
     mat4.multiply(camera, yRotMatrix, camera);
 
-    mat4.lookAt(matrix.lookAt, [camera[12], camera[13], camera[14]], center, [0,1,0]);
+    
     // Projection * Lookat = Camera
-    //mat4.lookAt(matrix.lookAt, eyepos, center, [0,1,0]);
-    mat4.perspective(matrix.proyeksi, Math.PI*30/180, aspectRatio, 1, 3000);
+    mat4.lookAt(matrix.lookAt, [camera[12], camera[13], camera[14]], center, [0,1,0]);
+    mat4.perspective(matrix.proyeksi, Math.PI*30/180, aspectRatio, 0.1, 3000);
     mat4.identity(matrix.camera);
     mat4.multiply(matrix.camera, matrix.lookAt, matrix.camera);
     mat4.multiply(matrix.camera, matrix.proyeksi, matrix.camera);

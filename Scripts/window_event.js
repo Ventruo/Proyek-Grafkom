@@ -2,32 +2,6 @@
 // ===  Window Event  ===
 // ======================
 
-window.addEventListener('keydown', this.keyBoardButton, false);
-function keyBoardButton(e) {
-    if (e.keyCode == 87){ //w key
-        camera[14] +=0.1;
-
-        //eyepos[2] += 1.0;
-        //eyepos[0] += 0.1;
-    }
-    if (e.keyCode == 65){ //a key
-        //eyepos[0] += 0.5;
-    }
-    if (e.keyCode == 83){ //s key
-        //eyepos[2] -= 1.0;
-        //eyepos[0] -= 0.1;
-    }
-    if (e.keyCode == 68){ //d key
-        //eyepos[0] -= 0.5;
-    }
-    if(e.keyCode == 81){ //q key
-        //eyepos[1] += 0.5;
-    }
-    if(e.keyCode==69){ // e key
-        //eyepos[1] -= 0.5;
-    }
-}
-
 
 //Event for Mouse Scroll
 var lastScrollTop = 0;
@@ -42,6 +16,8 @@ window.addEventListener("wheel", function(event){
 
 
 //Event for Mouse Drag
+var camPosX = 0;
+var camPosY = 0; 
 var canvasIsPressed = false
 var leftMouseClicked = true;
 var rightMouseClicked = false;
@@ -49,12 +25,14 @@ var xRotation = 0
 var yRotation = 0
 var lastPressX
 var lastPressY
+var lastRightPressX,lastRightPressY;
 layar.onmousedown = function (e) {
     
     canvasIsPressed = true
     lastPressX = e.pageX
     lastPressY = e.pageY
-
+    lastRightPressX = e.pageX
+    lastRightPressY = e.pageY
     if (e.which == 1){
         leftMouseClicked = true;
         rightMouseClicked = false;
@@ -84,7 +62,11 @@ layar.onmousemove = function (e) {
         }
         
         if (rightMouseClicked){
-            
+            camPosX += (e.pageX - lastRightPressX)/100;
+            camPosY += (e.pageY - lastRightPressY)/100;
+            console.log(camPosX+" - "+camPosY);
+            lastRightPressX = e.pageX;
+            lastRightPressY = e.pageY;
         }
     }
 }

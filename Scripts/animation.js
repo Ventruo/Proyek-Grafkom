@@ -50,7 +50,7 @@ function animate()
     mat4.scale(lamp.transformation, lamp.transformation, [0.1, 0.1, 0.1]);
 
     // Material Shininess
-    gl.uniform1f(buffer_location.material.shininess, 8.0);
+    gl.uniform1f(buffer_location.material.shininess, 32.0);
 
     
     // ====================

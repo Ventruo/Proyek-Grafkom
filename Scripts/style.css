@@ -71,3 +71,7 @@ img{
 .overlay-close:hover{
     cursor: pointer;
 }
+
+a {
+    color: white;
+}
